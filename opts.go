@@ -18,22 +18,24 @@ func (opts Opts) values() url.Values {
 	return url.Values(opts)
 }
 
-func (opts Opts) TargetFormat(targetFormat string) Opts {
-	opts.values().Set("targetformat", targetFormat)
+func (opts Opts) Param(key, value string) Opts {
+	opts.values().Set(key, value)
 	return opts
+}
+
+func (opts Opts) TargetFormat(targetFormat string) Opts {
+	return opts.Param("targetformat", targetFormat)
 }
 
 func (opts Opts) VideoOptionSize(videoOptionSize int) Opts {
-	opts.values().Set("videooptionsize", strconv.Itoa(videoOptionSize))
-	return opts
+	return opts.Param("videooptionsize", strconv.Itoa(videoOptionSize))
 }
 
 func (opts Opts) Code(code int) Opts {
-	opts.values().Set("code", strconv.Itoa(code))
-	return opts
+	return opts.Param("code", strconv.Itoa(code))
 }
 
-func (opts Opts) body(entity interface{}) flu.RequestBodyBuilder {
+func (opts Opts) body(entity interface{}) flu.BodyWriter {
 	switch entity := entity.(type) {
 	case string:
 		return flu.FormWith(opts.values()).
