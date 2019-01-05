@@ -83,7 +83,7 @@ func (c *Client) discover(file string, format string) {
 	}
 }
 
-func (c *Client) trySpawnWorker(hostID int, resource *flu.FileSystemResource, opts Opts, onComplete func(bool)) {
+func (c *Client) trySpawnWorker(hostID int, resource flu.FileSystemResource, opts Opts, onComplete func(bool)) {
 	worker := &worker{c.http, host(hostID)}
 	for j := 0; j < 3; j++ {
 		_, err := worker.execute(resource, opts)

@@ -15,7 +15,7 @@ func ExampleClient() {
 	resource := flu.NewFileSystemResource(filepath.Join(os.TempDir(), "test.mp4"))
 
 	// Cleanup.
-	err := resource.Delete()
+	err := os.RemoveAll(resource.Path())
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -45,7 +45,7 @@ func ExampleClient() {
 	}
 
 	// No way to introspect the file so this will have to do.
-	_, err = resource.Stat()
+	_, err = os.Stat(resource.Path())
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -54,7 +54,7 @@ func ExampleClient() {
 	fmt.Println("File exists")
 
 	c.Close()
-	_ = resource.Delete()
+	_ = os.RemoveAll(resource.Path())
 
 	// Output:
 	// State: SUCCESS
