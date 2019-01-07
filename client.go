@@ -48,8 +48,9 @@ func (c *Client) Convert(entity interface{}, opts Opts) (*Response, error) {
 // Download saves the converted file to a resource.
 func (c *Client) Download(r *Response, resource flu.WriteResource) error {
 	return c.http.NewRequest().
-		Endpoint(host(r.server) + "/convert/p3r68-cdx67/" + r.Filename).
 		Get().
+		Endpoint(host(r.server) + "/convert/p3r68-cdx67/" + r.Filename).
+		Execute().
 		StatusCodes(http.StatusOK).
 		ReadResource(resource).
 		Error
@@ -121,9 +122,10 @@ func (w *worker) Execute(task *pool.Task) {
 func (w *worker) execute(entity interface{}, opts Opts) (*Response, error) {
 	resp := new(Response)
 	err := w.http.NewRequest().
+		Post().
 		Endpoint(w.host + "/convert/convert-batch.php").
 		Body(opts.body(entity)).Sync().
-		Post().
+		Execute().
 		StatusCodes(http.StatusOK).
 		ReadBodyFunc(flu.JSON(resp).Read).
 		Error
