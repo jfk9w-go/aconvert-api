@@ -44,7 +44,7 @@ func (opts Opts) body(entity interface{}) flu.BodyWriter {
 
 	case flu.ReadResource:
 		opts.values().Set("filelocation", "local")
-		return flu.MultipartForm(opts.values()).
+		return flu.MultipartFormValues(opts.values()).
 			Add("filelocation", "local").
 			Resource("file", entity)
 
