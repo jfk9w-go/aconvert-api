@@ -38,13 +38,13 @@ func (opts Opts) Code(code int) Opts {
 func (opts Opts) body(entity interface{}) flu.BodyWriter {
 	switch entity := entity.(type) {
 	case string:
-		return flu.FormWith(opts.values()).
+		return flu.FormValues(opts.values()).
 			Add("filelocation", "online").
 			Add("file", entity)
 
 	case flu.ReadResource:
 		opts.values().Set("filelocation", "local")
-		return flu.MultipartFormWith(opts.values()).
+		return flu.MultipartForm(opts.values()).
 			Add("filelocation", "local").
 			Resource("file", entity)
 
