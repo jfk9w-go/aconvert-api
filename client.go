@@ -33,6 +33,10 @@ type request struct {
 
 // NewClient creates a new aconvert HTTP client and runs server discovery in the background.
 func NewClient(httpClient *flu.Client, config *Config) *Client {
+	if err := config.validate(); err != nil {
+		panic(err)
+	}
+
 	if httpClient == nil {
 		httpClient = flu.NewTransport().
 			ResponseHeaderTimeout(3 * time.Minute).
