@@ -13,7 +13,7 @@ import (
 
 // HostTemplate is a string template used to generate hosts.
 // %d is substituted with a corresponding server number.
-var HostTemplate = "https://s%d.aconvert.com"
+var HostTemplate = "https://s%v.aconvert.com"
 
 // Client is an entity allowing access to aconvert.
 type Client struct {
@@ -88,7 +88,7 @@ func (c *Client) ConvertResource(resource flu.ReadResource, opts Opts) (*Respons
 func (c *Client) Download(r *Response, resource flu.WriteResource) error {
 	return c.httpClient.NewRequest().
 		GET().
-		Resource(host(r.server) + "/convert/p3r68-cdx67/" + r.Filename).
+		Resource(r.host + "/convert/p3r68-cdx67/" + r.Filename).
 		Send().
 		CheckStatusCode(http.StatusOK).
 		ReadResource(resource).
@@ -145,10 +145,6 @@ func (c *Client) runWorker(host string) {
 	defer c.wg.Done()
 	for req := range c.queue {
 		resp, err := c.convert(host, req.body)
-		if err == nil {
-			err = resp.init()
-		}
-
 		if err != nil && req.retry < c.maxRetries {
 			req.retry++
 			c.queue <- req
@@ -172,6 +168,10 @@ func (c *Client) convert(host string, body flu.BodyWriter) (*Response, error) {
 		ReadBodyFunc(flu.JSON(resp).Read).
 		Error
 
+	if err == nil {
+		err = resp.init()
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -179,6 +179,6 @@ func (c *Client) convert(host string, body flu.BodyWriter) (*Response, error) {
 	return resp, nil
 }
 
-func host(number int) string {
-	return fmt.Sprintf(HostTemplate, number)
+func host(server interface{}) string {
+	return fmt.Sprintf(HostTemplate, server)
 }
