@@ -3,13 +3,13 @@ package aconvert
 import (
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/jfk9w-go/flu"
-	"github.com/jfk9w-go/lego/pool"
 )
 
 // HostTemplate is a string template used to generate hosts.
@@ -18,20 +18,38 @@ var HostTemplate = "https://s%d.aconvert.com"
 
 // Client is an entity allowing access to aconvert.
 type Client struct {
-	http *flu.Client
-	pool pool.Pool
+	httpClient *flu.Client
+	queue      chan *request
+	maxRetries int
+	wg         *sync.WaitGroup
+}
+
+type request struct {
+	body  flu.BodyWriter
+	resp  *Response
+	err   error
+	retry int
+	done  chan struct{}
 }
 
 // NewClient creates a new aconvert HTTP client and runs server discovery in the background.
-func NewClient(http *flu.Client, config *Config) *Client {
-	if http == nil {
-		http = flu.NewClient(nil).
-			ResponseHeaderTimeout(120 * time.Second)
+func NewClient(httpClient *flu.Client, config *Config) *Client {
+	if httpClient == nil {
+		httpClient = flu.NewTransport().
+			ResponseHeaderTimeout(3 * time.Minute).
+			NewClient().
+			Timeout(5 * time.Minute)
 	}
 
-	var client = &Client{
-		http: http,
-		pool: pool.New(),
+	client := &Client{
+		httpClient: httpClient,
+		queue:      make(chan *request, config.QueueSize),
+		maxRetries: config.MaxRetries,
+		wg:         new(sync.WaitGroup),
+	}
+
+	if client.maxRetries <= 1 {
+		client.maxRetries = math.MaxInt32
 	}
 
 	go client.discover(config.TestFile, config.TestFormat)
@@ -39,26 +57,43 @@ func NewClient(http *flu.Client, config *Config) *Client {
 }
 
 // Convert converts the provided media and returns a response.
-func (c *Client) Convert(entity interface{}, opts Opts) (*Response, error) {
-	ptr := &taskPtr{entity: entity, opts: opts}
-	err := c.pool.Execute(ptr)
-	return ptr.resp, err
+func (c *Client) Convert(media Media, opts Opts) (*Response, error) {
+	req := &request{
+		body: media.body(opts.values()),
+		done: make(chan struct{}),
+	}
+
+	c.queue <- req
+	for range req.done {
+		// wait until the request is done
+	}
+
+	return req.resp, req.err
+}
+
+// ConvertURL accepts URL as an argument.
+func (c *Client) ConvertURL(url string, opts Opts) (*Response, error) {
+	return c.Convert(URL{url}, opts)
+}
+
+func (c *Client) ConvertResource(resource flu.ReadResource, opts Opts) (*Response, error) {
+	return c.Convert(Resource{resource}, opts)
 }
 
 // Download saves the converted file to a resource.
 func (c *Client) Download(r *Response, resource flu.WriteResource) error {
-	return c.http.NewRequest().
-		Get().
-		Endpoint(host(r.server) + "/convert/p3r68-cdx67/" + r.Filename).
-		Execute().
-		StatusCodes(http.StatusOK).
+	return c.httpClient.NewRequest().
+		GET().
+		Resource(host(r.server) + "/convert/p3r68-cdx67/" + r.Filename).
+		Send().
+		CheckStatusCode(http.StatusOK).
 		ReadResource(resource).
 		Error
 }
 
-// Close shuts down the worker pool.
-func (c *Client) Close() {
-	c.pool.Close()
+func (c *Client) Shutdown() {
+	close(c.queue)
+	c.wg.Wait()
 }
 
 func (c *Client) discover(file string, format string) {
@@ -85,11 +120,12 @@ func (c *Client) discover(file string, format string) {
 }
 
 func (c *Client) trySpawnWorker(hostID int, resource flu.FileSystemResource, opts Opts, onComplete func(bool)) {
-	worker := &worker{c.http, host(hostID)}
-	for j := 0; j < 3; j++ {
-		_, err := worker.execute(resource, opts)
+	host := host(hostID)
+	body := Resource{resource}.body(opts.values())
+	for j := 0; j < c.maxRetries; j++ {
+		_, err := c.convert(host, body)
 		if err == nil {
-			c.pool.Spawn(worker)
+			go c.runWorker(host)
 			onComplete(true)
 			return
 		}
@@ -102,31 +138,35 @@ func (c *Client) trySpawnWorker(hostID int, resource flu.FileSystemResource, opt
 	onComplete(false)
 }
 
-type worker struct {
-	http *flu.Client
-	host string
-}
+func (c *Client) runWorker(host string) {
+	c.wg.Add(1)
+	defer c.wg.Done()
+	for req := range c.queue {
+		resp, err := c.convert(host, req.body)
+		if err == nil {
+			err = resp.init()
+		}
 
-func (w *worker) Execute(task *pool.Task) {
-	ptr := task.Ptr.(*taskPtr)
-	resp, err := w.execute(ptr.entity, ptr.opts)
-	if err != nil && ptr.retry < 3 {
-		ptr.retry += 1
-		task.Retry()
-	} else {
-		ptr.resp = resp
-		task.Complete(err)
+		if err != nil && req.retry < c.maxRetries {
+			req.retry++
+			c.queue <- req
+		} else {
+			req.resp = resp
+			req.err = err
+			close(req.done)
+		}
 	}
 }
 
-func (w *worker) execute(entity interface{}, opts Opts) (*Response, error) {
+func (c *Client) convert(host string, body flu.BodyWriter) (*Response, error) {
 	resp := new(Response)
-	err := w.http.NewRequest().
-		Post().
-		Endpoint(w.host + "/convert/convert-batch.php").
-		Body(opts.body(entity)).Sync().
-		Execute().
-		StatusCodes(http.StatusOK).
+	err := c.httpClient.NewRequest().
+		POST().
+		Resource(host + "/convert/convert-batch.php").
+		Body(body).
+		Buffer().
+		Send().
+		CheckStatusCode(http.StatusOK).
 		ReadBodyFunc(flu.JSON(resp).Read).
 		Error
 
@@ -134,14 +174,7 @@ func (w *worker) execute(entity interface{}, opts Opts) (*Response, error) {
 		return nil, err
 	}
 
-	return resp, resp.init()
-}
-
-type taskPtr struct {
-	entity interface{}
-	opts   Opts
-	resp   *Response
-	retry  int
+	return resp, nil
 }
 
 func host(number int) string {

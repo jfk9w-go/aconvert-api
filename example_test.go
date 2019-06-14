@@ -29,7 +29,7 @@ func ExampleClient() {
 	})
 
 	// Convert the test file.
-	resp, err := c.Convert(flu.NewFileSystemResource("testdata/test.webm"), NewOpts().TargetFormat("mp4"))
+	resp, err := c.ConvertResource(flu.NewFileSystemResource("testdata/test.webm"), NewOpts().TargetFormat("mp4"))
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -53,7 +53,7 @@ func ExampleClient() {
 
 	fmt.Println("File exists")
 
-	c.Close()
+	c.Shutdown()
 	_ = os.RemoveAll(resource.Path())
 
 	// Output:
