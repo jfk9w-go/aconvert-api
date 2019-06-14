@@ -48,7 +48,7 @@ func NewClient(httpClient *flu.Client, config *Config) *Client {
 		wg:         new(sync.WaitGroup),
 	}
 
-	if client.maxRetries <= 1 {
+	if client.maxRetries < 1 {
 		client.maxRetries = math.MaxInt32
 	}
 
@@ -71,11 +71,12 @@ func (c *Client) Convert(media Media, opts Opts) (*Response, error) {
 	return req.resp, req.err
 }
 
-// ConvertURL accepts URL as an argument.
+// ConvertURL accepts URL as argument.
 func (c *Client) ConvertURL(url string, opts Opts) (*Response, error) {
 	return c.Convert(URL{url}, opts)
 }
 
+// ConvertResource accepts flu.ReadResource as argument.
 func (c *Client) ConvertResource(resource flu.ReadResource, opts Opts) (*Response, error) {
 	return c.Convert(Resource{resource}, opts)
 }
