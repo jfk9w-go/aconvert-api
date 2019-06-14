@@ -2,7 +2,6 @@ package aconvert
 
 import (
 	"fmt"
-	"log"
 	"math"
 	"net/http"
 	"sync"
@@ -115,8 +114,6 @@ func (c *Client) discover(file string, format string) {
 	waitGroup.Wait()
 	if *hostsDiscovered == 0 {
 		panic("no hosts discovered")
-	} else {
-		log.Printf("Discovered %d hosts\n", *hostsDiscovered)
 	}
 }
 
