@@ -32,7 +32,6 @@ func ExampleClient() {
 	resp, err := c.ConvertResource(
 		flu.NewFileSystemResource("testdata/test.webm"),
 		NewOpts().TargetFormat("mp4"))
-	//Param("code", "81000"))
 
 	if err != nil {
 		fmt.Println(err)
