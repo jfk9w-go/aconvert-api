@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -100,8 +101,11 @@ func (c *Client) Shutdown() {
 	c.wg.Wait()
 }
 
+//noinspection GoUnhandledErrorResult
 func (c *Client) discover(file string, format string) {
 	resource := flu.NewFileSystemResource(file)
+	defer os.RemoveAll(resource.Path())
+
 	hostsDiscovered := new(int32)
 	waitGroup := new(sync.WaitGroup)
 	waitGroup.Add(30)
