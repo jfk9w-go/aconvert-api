@@ -2,9 +2,7 @@ package aconvert
 
 import (
 	"fmt"
-	"math"
 	"net/http"
-	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -52,10 +50,6 @@ func NewClient(httpClient *flu.Client, config *Config) *Client {
 		wg:         new(sync.WaitGroup),
 	}
 
-	if client.maxRetries < 1 {
-		client.maxRetries = math.MaxInt32
-	}
-
 	go client.discover(config.TestFile, config.TestFormat)
 	return client
 }
@@ -101,22 +95,18 @@ func (c *Client) Shutdown() {
 	c.wg.Wait()
 }
 
-//noinspection GoUnhandledErrorResult
 func (c *Client) discover(file string, format string) {
 	resource := flu.NewFileSystemResource(file)
-	defer os.RemoveAll(resource.Path())
-
 	hostsDiscovered := new(int32)
 	waitGroup := new(sync.WaitGroup)
 	waitGroup.Add(30)
 	for i := 0; i < 30; i++ {
-		go c.trySpawnWorker(i, resource, NewOpts().TargetFormat(format), func(discovered bool) {
-			if discovered {
+		go func(hostID int) {
+			if c.trySpawnWorker(hostID, resource, NewOpts().TargetFormat(format)) {
 				atomic.AddInt32(hostsDiscovered, 1)
 			}
-
 			waitGroup.Done()
-		})
+		}(i)
 	}
 
 	waitGroup.Wait()
@@ -125,15 +115,14 @@ func (c *Client) discover(file string, format string) {
 	}
 }
 
-func (c *Client) trySpawnWorker(hostID int, resource flu.FileSystemResource, opts Opts, onComplete func(bool)) {
+func (c *Client) trySpawnWorker(hostID int, resource flu.FileSystemResource, opts Opts) bool {
 	host := host(hostID)
 	body := Resource{resource}.body(opts.values())
-	for j := 0; j < c.maxRetries; j++ {
+	for j := 0; j <= c.maxRetries; j++ {
 		_, err := c.convert(host, body)
 		if err == nil {
 			go c.runWorker(host)
-			onComplete(true)
-			return
+			return true
 		}
 
 		if j < 2 {
@@ -141,7 +130,7 @@ func (c *Client) trySpawnWorker(hostID int, resource flu.FileSystemResource, opt
 		}
 	}
 
-	onComplete(false)
+	return false
 }
 
 func (c *Client) runWorker(host string) {
@@ -149,7 +138,7 @@ func (c *Client) runWorker(host string) {
 	defer c.wg.Done()
 	for req := range c.queue {
 		resp, err := c.convert(host, req.body)
-		if err != nil && req.retry < c.maxRetries {
+		if err != nil && req.retry <= c.maxRetries {
 			req.retry++
 			c.queue <- req
 		} else {
@@ -169,7 +158,7 @@ func (c *Client) convert(host string, body flu.BodyWriter) (*Response, error) {
 		Buffer().
 		Send().
 		CheckStatusCode(http.StatusOK).
-		ReadBodyFunc(flu.JSON(resp).Read).
+		ReadBodyFunc(flu.JSON(resp).Read). // flu.JSON checks the Content-Type header which doesn't match in this case
 		Error
 
 	if err == nil {
