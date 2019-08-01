@@ -13,4 +13,4 @@ go get -u github.com/jfk9w-go/aconvert-api
 
 ## Example
 
-You can find examples [here](https://github.com/jfk9w-go/aconvert-api/blob/master/client_test.go).
+You can find examples [here](https://github.com/jfk9w-go/aconvert-api/blob/master/example_test.go).
