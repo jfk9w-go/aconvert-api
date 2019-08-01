@@ -29,7 +29,10 @@ func ExampleClient() {
 	})
 
 	// Convert the test file.
-	resp, err := c.Convert(flu.NewFileSystemResource("testdata/test.webm"), NewOpts().TargetFormat("mp4"))
+	resp, err := c.ConvertResource(
+		flu.NewFileSystemResource("testdata/test.webm"),
+		NewOpts().TargetFormat("mp4"))
+
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -44,19 +47,23 @@ func ExampleClient() {
 		return
 	}
 
-	// No way to introspect the file so this will have to do.
-	_, err = os.Stat(resource.Path())
+	stat, err := os.Stat(resource.Path())
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	fmt.Println("File exists")
+	// source file size is 500 KB
+	// this should not be lower 350 KB
+	size := stat.Size()
+	if size < 350000 {
+		fmt.Println("Invalid file size: ", size)
+		return
+	}
 
-	c.Close()
+	c.Shutdown()
 	_ = os.RemoveAll(resource.Path())
 
 	// Output:
 	// State: SUCCESS
-	// File exists
 }

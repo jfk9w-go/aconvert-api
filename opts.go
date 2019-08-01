@@ -1,11 +1,8 @@
 package aconvert
 
 import (
-	"fmt"
 	"net/url"
 	"strconv"
-
-	"github.com/jfk9w-go/flu"
 )
 
 type Opts url.Values
@@ -33,22 +30,4 @@ func (opts Opts) VideoOptionSize(videoOptionSize int) Opts {
 
 func (opts Opts) Code(code int) Opts {
 	return opts.Param("code", strconv.Itoa(code))
-}
-
-func (opts Opts) body(entity interface{}) flu.BodyWriter {
-	switch entity := entity.(type) {
-	case string:
-		return flu.FormWith(opts.values()).
-			Add("filelocation", "online").
-			Add("file", entity)
-
-	case flu.ReadResource:
-		opts.values().Set("filelocation", "local")
-		return flu.MultipartFormWith(opts.values()).
-			Add("filelocation", "local").
-			Resource("file", entity)
-
-	default:
-		panic(fmt.Errorf("unknown entity type: %T", entity))
-	}
 }

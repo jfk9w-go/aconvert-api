@@ -2,7 +2,6 @@ package aconvert
 
 import (
 	"fmt"
-	"strconv"
 )
 
 // Response represents a aconvert response JSON.
@@ -17,7 +16,7 @@ type Response struct {
 	// State is the request state (SUCCESS or ERROR).
 	State string `json:"state"`
 
-	server int
+	host string
 }
 
 func (r *Response) init() error {
@@ -25,8 +24,6 @@ func (r *Response) init() error {
 		return fmt.Errorf("state is %s, not SUCCESS", r.State)
 	}
 
-	var err error
-	r.server, err = strconv.Atoi(r.Server)
-
-	return err
+	r.host = host(r.Server)
+	return nil
 }
