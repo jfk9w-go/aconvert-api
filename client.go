@@ -37,20 +37,20 @@ func newRequest(body flu.BodyWriter) *request {
 }
 
 // NewClient creates a new aconvert HTTP client and runs server discovery in the background.
-func NewClient(httpClient *flu.Client, config *Config) *Client {
+func NewClient(http *flu.Client, config *Config) *Client {
 	if err := config.validate(); err != nil {
 		panic(err)
 	}
 
-	if httpClient == nil {
-		httpClient = flu.NewTransport().
+	if http == nil {
+		http = flu.NewTransport().
 			ResponseHeaderTimeout(3 * time.Minute).
 			NewClient().
 			Timeout(5 * time.Minute)
 	}
 
 	client := &Client{
-		http:       httpClient,
+		http:       http,
 		queue:      make(chan *request, config.QueueSize),
 		maxRetries: config.MaxRetries,
 	}
@@ -95,20 +95,20 @@ func (c *Client) Shutdown() {
 
 func (c *Client) discover(file string, format string) {
 	resource := flu.NewFileSystemResource(file)
-	hostsDiscovered := new(int32)
-	waitGroup := new(sync.WaitGroup)
-	waitGroup.Add(30)
+	discovered := new(int32)
+	workers := new(sync.WaitGroup)
+	workers.Add(30)
 	for i := 0; i < 30; i++ {
 		go func(hostID int) {
 			if c.trySpawnWorker(hostID, resource, NewOpts().TargetFormat(format)) {
-				atomic.AddInt32(hostsDiscovered, 1)
+				atomic.AddInt32(discovered, 1)
 			}
-			waitGroup.Done()
+			workers.Done()
 		}(i)
 	}
 
-	waitGroup.Wait()
-	if *hostsDiscovered == 0 {
+	workers.Wait()
+	if *discovered == 0 {
 		panic("no hosts discovered")
 	}
 }
