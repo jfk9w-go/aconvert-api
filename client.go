@@ -16,10 +16,10 @@ var HostTemplate = "https://s%v.aconvert.com"
 
 // Client is an entity allowing access to aconvert.
 type Client struct {
-	httpClient *flu.Client
+	http       *flu.Client
 	queue      chan *request
 	maxRetries int
-	wg         *sync.WaitGroup
+	workers    sync.WaitGroup
 }
 
 type request struct {
@@ -27,7 +27,13 @@ type request struct {
 	resp  *Response
 	err   error
 	retry int
-	done  chan struct{}
+	work  sync.WaitGroup
+}
+
+func newRequest(body flu.BodyWriter) *request {
+	req := &request{body: body}
+	req.work.Add(1)
+	return req
 }
 
 // NewClient creates a new aconvert HTTP client and runs server discovery in the background.
@@ -44,10 +50,9 @@ func NewClient(httpClient *flu.Client, config *Config) *Client {
 	}
 
 	client := &Client{
-		httpClient: httpClient,
+		http:       httpClient,
 		queue:      make(chan *request, config.QueueSize),
 		maxRetries: config.MaxRetries,
-		wg:         new(sync.WaitGroup),
 	}
 
 	go client.discover(config.TestFile, config.TestFormat)
@@ -56,16 +61,9 @@ func NewClient(httpClient *flu.Client, config *Config) *Client {
 
 // Convert converts the provided media and returns a response.
 func (c *Client) Convert(media Media, opts Opts) (*Response, error) {
-	req := &request{
-		body: media.body(opts.values()),
-		done: make(chan struct{}),
-	}
-
+	req := newRequest(media.body(opts.values()))
 	c.queue <- req
-	for range req.done {
-		// wait until the request is done
-	}
-
+	req.work.Wait()
 	return req.resp, req.err
 }
 
@@ -81,7 +79,7 @@ func (c *Client) ConvertResource(resource flu.ReadResource, opts Opts) (*Respons
 
 // Download saves the converted file to a resource.
 func (c *Client) Download(r *Response, resource flu.WriteResource) error {
-	return c.httpClient.NewRequest().
+	return c.http.NewRequest().
 		GET().
 		Resource(r.host + "/convert/p3r68-cdx67/" + r.Filename).
 		Send().
@@ -92,7 +90,7 @@ func (c *Client) Download(r *Response, resource flu.WriteResource) error {
 
 func (c *Client) Shutdown() {
 	close(c.queue)
-	c.wg.Wait()
+	c.workers.Wait()
 }
 
 func (c *Client) discover(file string, format string) {
@@ -134,8 +132,8 @@ func (c *Client) trySpawnWorker(hostID int, resource flu.FileSystemResource, opt
 }
 
 func (c *Client) runWorker(host string) {
-	c.wg.Add(1)
-	defer c.wg.Done()
+	c.workers.Add(1)
+	defer c.workers.Done()
 	for req := range c.queue {
 		resp, err := c.convert(host, req.body)
 		if err != nil && req.retry <= c.maxRetries {
@@ -144,14 +142,14 @@ func (c *Client) runWorker(host string) {
 		} else {
 			req.resp = resp
 			req.err = err
-			close(req.done)
+			req.work.Done()
 		}
 	}
 }
 
 func (c *Client) convert(host string, body flu.BodyWriter) (*Response, error) {
 	resp := new(Response)
-	err := c.httpClient.NewRequest().
+	err := c.http.NewRequest().
 		POST().
 		Resource(host + "/convert/convert-batch.php").
 		Body(body).
