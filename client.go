@@ -71,7 +71,7 @@ func (c *Client) Convert(media Media, opts Options) (*Response, error) {
 
 // ConvertURL accepts URL as argument.
 func (c *Client) ConvertURL(url string, opts Options) (*Response, error) {
-	return c.Convert(URL{url}, opts)
+	return c.Convert(URL(url), opts)
 }
 
 // ConvertResource accepts flu.ReadResource as argument.
@@ -79,7 +79,7 @@ func (c *Client) ConvertResource(resource flu.ResourceReader, opts Options) (*Re
 	return c.Convert(Resource{resource}, opts)
 }
 
-// Download saves the converted file to a res.
+// Download saves the converted file to a resource.
 func (c *Client) Download(r *Response, resource flu.ResourceWriter) error {
 	return c.http.NewRequest().
 		GET().
@@ -94,14 +94,14 @@ func (c *Client) Shutdown() {
 	c.workers.Wait()
 }
 
-func (c *Client) discover(file string, format string) {
-	resource := flu.File(file)
+func (c *Client) discover(filepath string, format string) {
+	file := flu.File(filepath)
 	discovered := new(int32)
 	workers := new(sync.WaitGroup)
 	workers.Add(30)
 	for i := 0; i < 30; i++ {
 		go func(hostID int) {
-			if c.trySpawnWorker(hostID, resource, NewOpts().TargetFormat(format)) {
+			if c.trySpawnWorker(hostID, file, NewOpts().TargetFormat(format)) {
 				atomic.AddInt32(discovered, 1)
 			}
 
@@ -117,9 +117,9 @@ func (c *Client) discover(file string, format string) {
 	log.Printf("Discovered %d aconvert workers", *discovered)
 }
 
-func (c *Client) trySpawnWorker(hostID int, resource flu.FileResource, options Options) bool {
+func (c *Client) trySpawnWorker(hostID int, file flu.File, options Options) bool {
 	host := host(hostID)
-	body := Resource{resource}.body(options.values())
+	body := Resource{file}.body(options.values())
 	for j := 0; j <= c.maxRetries; j++ {
 		_, err := c.convert(host, body)
 		if err == nil {

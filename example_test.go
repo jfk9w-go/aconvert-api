@@ -11,7 +11,7 @@ import (
 
 // ExampleClient provides a Client usage example.
 func ExampleClient() {
-	// Create a res which will contain the converted file.
+	// Create a resource which will contain the converted file.
 	resource := flu.File(filepath.Join(os.TempDir(), "test.mp4"))
 
 	// Cleanup.
