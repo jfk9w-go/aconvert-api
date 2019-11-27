@@ -2,6 +2,9 @@ package aconvert
 
 import (
 	"fmt"
+	"io"
+
+	"github.com/jfk9w-go/flu"
 )
 
 // Response represents a aconvert response JSON.
@@ -19,7 +22,12 @@ type Response struct {
 	host string
 }
 
-func (r *Response) init() error {
+func (r *Response) DecodeFrom(reader io.Reader) error {
+	err := flu.JSON(r).DecodeFrom(reader)
+	if err != nil {
+		return err
+	}
+
 	if r.State != "SUCCESS" {
 		return fmt.Errorf("state is %s, not SUCCESS", r.State)
 	}

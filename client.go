@@ -2,7 +2,8 @@ package aconvert
 
 import (
 	"fmt"
-	"net/http"
+	"log"
+	"math"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -23,14 +24,14 @@ type Client struct {
 }
 
 type request struct {
-	body  flu.BodyWriter
+	body  flu.BodyEncoderTo
 	resp  *Response
 	err   error
 	retry int
 	work  sync.WaitGroup
 }
 
-func newRequest(body flu.BodyWriter) *request {
+func newRequest(body flu.BodyEncoderTo) *request {
 	req := &request{body: body}
 	req.work.Add(1)
 	return req
@@ -46,7 +47,8 @@ func NewClient(http *flu.Client, config *Config) *Client {
 		http = flu.NewTransport().
 			ResponseHeaderTimeout(3 * time.Minute).
 			NewClient().
-			Timeout(5 * time.Minute)
+			Timeout(5 * time.Minute).
+			AcceptResponseCodes(200)
 	}
 
 	client := &Client{
@@ -60,7 +62,7 @@ func NewClient(http *flu.Client, config *Config) *Client {
 }
 
 // Convert converts the provided media and returns a response.
-func (c *Client) Convert(media Media, opts Opts) (*Response, error) {
+func (c *Client) Convert(media Media, opts Options) (*Response, error) {
 	req := newRequest(media.body(opts.values()))
 	c.queue <- req
 	req.work.Wait()
@@ -68,22 +70,21 @@ func (c *Client) Convert(media Media, opts Opts) (*Response, error) {
 }
 
 // ConvertURL accepts URL as argument.
-func (c *Client) ConvertURL(url string, opts Opts) (*Response, error) {
+func (c *Client) ConvertURL(url string, opts Options) (*Response, error) {
 	return c.Convert(URL{url}, opts)
 }
 
 // ConvertResource accepts flu.ReadResource as argument.
-func (c *Client) ConvertResource(resource flu.ReadResource, opts Opts) (*Response, error) {
+func (c *Client) ConvertResource(resource flu.ResourceReader, opts Options) (*Response, error) {
 	return c.Convert(Resource{resource}, opts)
 }
 
-// Download saves the converted file to a resource.
-func (c *Client) Download(r *Response, resource flu.WriteResource) error {
+// Download saves the converted file to a res.
+func (c *Client) Download(r *Response, resource flu.ResourceWriter) error {
 	return c.http.NewRequest().
 		GET().
 		Resource(r.host + "/convert/p3r68-cdx67/" + r.Filename).
 		Send().
-		CheckStatusCode(http.StatusOK).
 		ReadResource(resource).
 		Error
 }
@@ -94,7 +95,7 @@ func (c *Client) Shutdown() {
 }
 
 func (c *Client) discover(file string, format string) {
-	resource := flu.NewFileSystemResource(file)
+	resource := flu.File(file)
 	discovered := new(int32)
 	workers := new(sync.WaitGroup)
 	workers.Add(30)
@@ -103,6 +104,7 @@ func (c *Client) discover(file string, format string) {
 			if c.trySpawnWorker(hostID, resource, NewOpts().TargetFormat(format)) {
 				atomic.AddInt32(discovered, 1)
 			}
+
 			workers.Done()
 		}(i)
 	}
@@ -111,11 +113,13 @@ func (c *Client) discover(file string, format string) {
 	if *discovered == 0 {
 		panic("no hosts discovered")
 	}
+
+	log.Printf("Discovered %d aconvert workers", *discovered)
 }
 
-func (c *Client) trySpawnWorker(hostID int, resource flu.FileSystemResource, opts Opts) bool {
+func (c *Client) trySpawnWorker(hostID int, resource flu.FileResource, options Options) bool {
 	host := host(hostID)
-	body := Resource{resource}.body(opts.values())
+	body := Resource{resource}.body(options.values())
 	for j := 0; j <= c.maxRetries; j++ {
 		_, err := c.convert(host, body)
 		if err == nil {
@@ -124,7 +128,7 @@ func (c *Client) trySpawnWorker(hostID int, resource flu.FileSystemResource, opt
 		}
 
 		if j < 2 {
-			time.Sleep(time.Duration(2^j) * time.Second)
+			time.Sleep(time.Duration(math.Pow(2, float64(j))) * time.Second)
 		}
 	}
 
@@ -147,7 +151,7 @@ func (c *Client) runWorker(host string) {
 	}
 }
 
-func (c *Client) convert(host string, body flu.BodyWriter) (*Response, error) {
+func (c *Client) convert(host string, body flu.BodyEncoderTo) (*Response, error) {
 	resp := new(Response)
 	err := c.http.NewRequest().
 		POST().
@@ -155,13 +159,8 @@ func (c *Client) convert(host string, body flu.BodyWriter) (*Response, error) {
 		Body(body).
 		Buffer().
 		Send().
-		CheckStatusCode(http.StatusOK).
-		ReadBodyFunc(flu.JSON(resp).Read). // flu.JSON checks the Content-Type header which doesn't match in this case
+		Decode(resp). // DecodeBody checks the Content-Type header which doesn't match in this case
 		Error
-
-	if err == nil {
-		err = resp.init()
-	}
 
 	if err != nil {
 		return nil, err

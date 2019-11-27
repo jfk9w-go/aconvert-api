@@ -11,8 +11,8 @@ import (
 
 // ExampleClient provides a Client usage example.
 func ExampleClient() {
-	// Create a resource which will contain the converted file.
-	resource := flu.NewFileSystemResource(filepath.Join(os.TempDir(), "test.mp4"))
+	// Create a res which will contain the converted file.
+	resource := flu.File(filepath.Join(os.TempDir(), "test.mp4"))
 
 	// Cleanup.
 	err := os.RemoveAll(resource.Path())
@@ -30,7 +30,7 @@ func ExampleClient() {
 
 	// Convert the test file.
 	resp, err := c.ConvertResource(
-		flu.NewFileSystemResource("testdata/test.webm"),
+		flu.File("testdata/test.webm"),
 		NewOpts().TargetFormat("mp4"))
 
 	if err != nil {
