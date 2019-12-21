@@ -7,40 +7,36 @@ import (
 	"github.com/jfk9w-go/flu"
 )
 
-type Options url.Values
+type Opts url.Values
 
-func NewOpts() Options {
-	return Options{}
+func (o Opts) values() url.Values {
+	return url.Values(o)
 }
 
-func (opts Options) values() url.Values {
-	return url.Values(opts)
+func (o Opts) Param(key, value string) Opts {
+	o.values().Set(key, value)
+	return o
 }
 
-func (opts Options) Param(key, value string) Options {
-	opts.values().Set(key, value)
-	return opts
+func (o Opts) TargetFormat(targetFormat string) Opts {
+	return o.Param("targetformat", targetFormat)
 }
 
-func (opts Options) TargetFormat(targetFormat string) Options {
-	return opts.Param("targetformat", targetFormat)
+func (o Opts) VideoOptionSize(videoOptionSize int) Opts {
+	return o.Param("videooptionsize", strconv.Itoa(videoOptionSize))
 }
 
-func (opts Options) VideoOptionSize(videoOptionSize int) Options {
-	return opts.Param("videooptionsize", strconv.Itoa(videoOptionSize))
+func (o Opts) Code(code int) Opts {
+	return o.Param("code", strconv.Itoa(code))
 }
 
-func (opts Options) Code(code int) Options {
-	return opts.Param("code", strconv.Itoa(code))
-}
-
-func (opts Options) body(in flu.Readable) flu.BodyWriter {
+func (o Opts) body(in flu.Readable) flu.BodyWriter {
 	if url, ok := in.(flu.URL); ok {
-		return flu.FormValues(opts.values()).
+		return flu.FormValues(o.values()).
 			Add("filelocation", "online").
 			Add("file", string(url))
 	} else {
-		return flu.MultipartFormValues(opts.values()).
+		return flu.MultipartFormValues(o.values()).
 			Add("filelocation", "local").
 			File("file", in)
 	}

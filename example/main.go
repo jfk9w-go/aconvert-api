@@ -18,7 +18,7 @@ func main() {
 	}
 	defer os.RemoveAll(file.Path())
 	c := NewClient(nil, Config{})
-	resp, err := c.Convert(flu.File("example/testdata/test.webm"), NewOpts().TargetFormat("mp4"))
+	resp, err := c.Convert(flu.File("example/testdata/test.webm"), make(Opts).TargetFormat("mp4"))
 	if err != nil {
 		panic(err)
 	}

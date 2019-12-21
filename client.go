@@ -50,7 +50,7 @@ func NewClient(http *flu.Client, config Config) *Client {
 }
 
 // Convert converts the provided media and returns a response.
-func (c *Client) Convert(in flu.Readable, opts Options) (resp *Response, err error) {
+func (c *Client) Convert(in flu.Readable, opts Opts) (resp *Response, err error) {
 	body := opts.body(in)
 	for i := 0; i <= c.maxRetries; i++ {
 		server := <-c.servers
@@ -75,7 +75,7 @@ func (c *Client) Download(url string, out flu.Writable) error {
 		Error
 }
 
-func (c *Client) ConvertAndDownload(in flu.Readable, out flu.Writable, opts Options) error {
+func (c *Client) ConvertAndDownload(in flu.Readable, out flu.Writable, opts Opts) error {
 	resp, err := c.Convert(in, opts)
 	if err != nil {
 		return err
@@ -87,7 +87,7 @@ func (c *Client) discover(probe *Probe, servers []int) {
 	discovered := new(int32)
 	workers := new(sync.WaitGroup)
 	workers.Add(len(servers))
-	body := NewOpts().TargetFormat(probe.Format).body(probe.File)
+	body := make(Opts).TargetFormat(probe.Format).body(probe.File)
 	for _, id := range servers {
 		go func(id int) {
 			server := server{c.http, baseURI(id)}
