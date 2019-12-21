@@ -3,6 +3,8 @@ package aconvert
 import (
 	"net/url"
 	"strconv"
+
+	"github.com/jfk9w-go/flu"
 )
 
 type Options url.Values
@@ -30,4 +32,16 @@ func (opts Options) VideoOptionSize(videoOptionSize int) Options {
 
 func (opts Options) Code(code int) Options {
 	return opts.Param("code", strconv.Itoa(code))
+}
+
+func (opts Options) body(in flu.Readable) flu.BodyWriter {
+	if url, ok := in.(flu.URL); ok {
+		return flu.FormValues(opts.values()).
+			Add("filelocation", "online").
+			Add("file", string(url))
+	} else {
+		return flu.MultipartFormValues(opts.values()).
+			Add("filelocation", "local").
+			File("file", in)
+	}
 }
