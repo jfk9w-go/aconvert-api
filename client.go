@@ -22,9 +22,9 @@ type Client struct {
 }
 
 // NewClient creates a new aconvert HTTP client and runs server discovery in the background.
-func NewClient(http *flu.Client, config *Config) *Client {
-	if err := config.validate(); err != nil {
-		panic(err)
+func NewClient(http *flu.Client, config Config) *Client {
+	if config.Servers == nil {
+		config.Servers = DefaultServers
 	}
 	if http == nil {
 		http = flu.NewTransport().
@@ -38,7 +38,7 @@ func NewClient(http *flu.Client, config *Config) *Client {
 		servers:    make(chan server, len(config.Servers)),
 		maxRetries: config.MaxRetries,
 	}
-	go client.discover(config.TestFile, config.TestFormat, config.Servers)
+	go client.discover(config.Probe, config.Servers)
 	return client
 }
 
@@ -76,11 +76,18 @@ func (c *Client) ConvertAndDownload(in flu.Readable, out flu.Writable, opts Opti
 	return c.Download(resp.URL(), out)
 }
 
-func (c *Client) discover(in flu.Readable, format string, servers []int) {
+func (c *Client) discover(probe *Probe, servers []int) {
+	if probe == nil {
+		log.Printf("Using %d configured servers", len(servers))
+		for _, id := range servers {
+			c.servers <- server{c.http, baseURI(id)}
+		}
+		return
+	}
 	discovered := new(int32)
 	workers := new(sync.WaitGroup)
 	workers.Add(len(servers))
-	body := NewOpts().TargetFormat(format).body(in)
+	body := NewOpts().TargetFormat(probe.Format).body(probe.File)
 	for _, id := range servers {
 		go func(id int) {
 			server := server{c.http, baseURI(id)}
@@ -95,7 +102,7 @@ func (c *Client) discover(in flu.Readable, format string, servers []int) {
 	if *discovered == 0 {
 		panic("no hosts discovered")
 	}
-	log.Printf("Discovered %d aconvert workers", *discovered)
+	log.Printf("Discovered %d aconvert servers", *discovered)
 }
 
 func baseURI(id interface{}) string {
