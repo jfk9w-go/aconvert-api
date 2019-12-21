@@ -38,7 +38,14 @@ func NewClient(http *flu.Client, config Config) *Client {
 		servers:    make(chan server, len(config.Servers)),
 		maxRetries: config.MaxRetries,
 	}
-	go client.discover(config.Probe, config.Servers)
+	if config.Probe == nil {
+		log.Printf("Using %d configured servers", len(config.Servers))
+		for _, id := range config.Servers {
+			client.servers <- server{http, baseURI(id)}
+		}
+	} else {
+		go client.discover(config.Probe, config.Servers)
+	}
 	return client
 }
 
@@ -77,13 +84,6 @@ func (c *Client) ConvertAndDownload(in flu.Readable, out flu.Writable, opts Opti
 }
 
 func (c *Client) discover(probe *Probe, servers []int) {
-	if probe == nil {
-		log.Printf("Using %d configured servers", len(servers))
-		for _, id := range servers {
-			c.servers <- server{c.http, baseURI(id)}
-		}
-		return
-	}
 	discovered := new(int32)
 	workers := new(sync.WaitGroup)
 	workers.Add(len(servers))
