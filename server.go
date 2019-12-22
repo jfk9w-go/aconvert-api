@@ -1,7 +1,6 @@
 package aconvert
 
 import (
-	"log"
 	"math"
 	"time"
 
@@ -40,7 +39,6 @@ func (s server) convert(body flu.BodyWriter) (*Response, error) {
 		Read(resp). // ReadBody checks the Content-Type header which doesn't match in this case
 		Error
 	if err != nil {
-		log.Printf("Failed to convert on %s: resp = %v, err = %v", s.baseURI, resp, err)
 		return nil, err
 	}
 	return resp, nil
