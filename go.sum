@@ -6,5 +6,9 @@ github.com/jfk9w-go/flu v0.9.9-0.20191221183922-019332d7982d h1:olZ+hxvUwGSsBBG6
 github.com/jfk9w-go/flu v0.9.9-0.20191221183922-019332d7982d/go.mod h1:YcfNxx58rsSTdJ95aO/Ak/xMvMWjjrUmgkOumdxZUIo=
 github.com/jfk9w-go/flu v0.9.9-0.20191221185117-63373f24c18e h1:tsnrCfJRFCKS34D838yn4vLSmLEU/4vyEMNtapRAIG0=
 github.com/jfk9w-go/flu v0.9.9-0.20191221185117-63373f24c18e/go.mod h1:YcfNxx58rsSTdJ95aO/Ak/xMvMWjjrUmgkOumdxZUIo=
+github.com/jfk9w-go/flu v0.9.9-0.20191222065812-4c38e5a797c6 h1:B5Z7OhVD8SRaSGRMecn9vFrVjKSMoeeXxpLWpCVvyXs=
+github.com/jfk9w-go/flu v0.9.9-0.20191222065812-4c38e5a797c6/go.mod h1:YcfNxx58rsSTdJ95aO/Ak/xMvMWjjrUmgkOumdxZUIo=
+github.com/jfk9w-go/flu v0.9.9-0.20191225084900-89ecdef0c0b1 h1:YSpvp/bkPXEQKOOeOXqB9NOeFfUThHqQIFoL3tnn6EI=
+github.com/jfk9w-go/flu v0.9.9-0.20191225084900-89ecdef0c0b1/go.mod h1:YcfNxx58rsSTdJ95aO/Ak/xMvMWjjrUmgkOumdxZUIo=
 github.com/pkg/errors v0.8.1 h1:iURUrRGxPUNPdy5/HRSm+Yj6okJ6UtLINN0Q9M4+h3I=
 github.com/pkg/errors v0.8.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=

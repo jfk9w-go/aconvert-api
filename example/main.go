@@ -2,8 +2,10 @@ package main
 
 import (
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	. "github.com/jfk9w-go/aconvert-api"
 	"github.com/jfk9w-go/flu"
@@ -34,4 +36,25 @@ func main() {
 	size := stat.Size()
 	log.Printf("Converted file size: %d Kb", size>>10)
 	_ = os.RemoveAll(file.Path())
+	err = c.NewRequest().
+		Resource(resp.URL()).
+		HEAD().
+		Send().
+		HandleResponse(responseHandler{}).
+		Error
+	if err != nil {
+		panic(err)
+	}
+}
+
+type responseHandler struct{}
+
+func (responseHandler) Handle(resp *http.Response) error {
+	header := resp.Header.Get("Content-Length")
+	length, err := strconv.Atoi(header)
+	if err != nil {
+		return err
+	}
+	log.Printf("Content-Length: %d Kb", length>>10)
+	return nil
 }

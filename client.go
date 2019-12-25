@@ -16,7 +16,7 @@ var BaseURITemplate = "https://s%v.aconvert.com"
 
 // Client is an entity allowing access to aconvert.
 type Client struct {
-	http       *flu.Client
+	*flu.Client
 	servers    chan server
 	maxRetries int
 }
@@ -34,7 +34,7 @@ func NewClient(http *flu.Client, config Config) *Client {
 			AcceptResponseCodes(200)
 	}
 	client := &Client{
-		http:       http,
+		Client:     http,
 		servers:    make(chan server, len(config.Servers)),
 		maxRetries: config.MaxRetries,
 	}
@@ -67,7 +67,7 @@ func (c *Client) Convert(in flu.Readable, opts Opts) (resp *Response, err error)
 
 // Download saves the converted file to a in.
 func (c *Client) Download(url string, out flu.Writable) error {
-	return c.http.NewRequest().
+	return c.NewRequest().
 		GET().
 		Resource(url).
 		Send().
@@ -90,7 +90,7 @@ func (c *Client) discover(probe *Probe, servers []int) {
 	body := make(Opts).TargetFormat(probe.Format).body(probe.File)
 	for _, id := range servers {
 		go func(id int) {
-			server := server{c.http, baseURI(id)}
+			server := server{c.Client, baseURI(id)}
 			if server.test(body, c.maxRetries) {
 				atomic.AddInt32(discovered, 1)
 				c.servers <- server
