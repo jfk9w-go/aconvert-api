@@ -65,24 +65,6 @@ func (c *Client) Convert(in flu.Readable, opts Opts) (resp *Response, err error)
 	return
 }
 
-// Download saves the converted file to a in.
-func (c *Client) Download(url string, out flu.Writable) error {
-	return c.NewRequest().
-		GET().
-		Resource(url).
-		Send().
-		ReadBodyTo(out).
-		Error
-}
-
-func (c *Client) ConvertAndDownload(in flu.Readable, out flu.Writable, opts Opts) error {
-	resp, err := c.Convert(in, opts)
-	if err != nil {
-		return err
-	}
-	return c.Download(resp.URL(), out)
-}
-
 func (c *Client) discover(probe *Probe, servers []int) {
 	discovered := new(int32)
 	workers := new(sync.WaitGroup)
