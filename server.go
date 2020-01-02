@@ -30,13 +30,11 @@ func (s server) test(body flu.BodyWriter, maxRetries int) bool {
 
 func (s server) convert(body flu.BodyWriter) (*Response, error) {
 	resp := new(Response)
-	err := s.http.NewRequest().
-		POST().
-		Resource(s.baseURI + "/convert/convert-batch.php").
-		Body(body).
-		Buffer().
-		Send().
-		Read(resp). // ReadBody checks the Content-Type header which doesn't match in this case
+	err := s.http.
+		POST(s.baseURI + "/convert/convert-batch.php").
+		Body(body).Buffer().
+		Execute().
+		Read(resp).
 		Error
 	if err != nil {
 		return nil, err

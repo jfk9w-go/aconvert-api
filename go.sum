@@ -1,6 +1,6 @@
 github.com/google/go-querystring v1.0.0 h1:Xkwi/a1rcvNg1PPYe5vI8GbeBY/jrVuDX5ASuANWTrk=
 github.com/google/go-querystring v1.0.0/go.mod h1:odCYkC5MyYFN7vkCjXpyrEuKhc/BUO6wN/zVPAxq5ck=
-github.com/jfk9w-go/flu v0.9.9-0.20191228120430-084dfd7b43a1 h1:WW4mI1GuxsO6I67s3l2GEb3NAwy1Ioeiu2lypY+Djhs=
-github.com/jfk9w-go/flu v0.9.9-0.20191228120430-084dfd7b43a1/go.mod h1:YcfNxx58rsSTdJ95aO/Ak/xMvMWjjrUmgkOumdxZUIo=
+github.com/jfk9w-go/flu v0.9.9-0.20200102105924-c168afbc4702 h1:ifX88OKsTwG52nrLsENZS/orD0Y9PUda3Pod4d+C0Zw=
+github.com/jfk9w-go/flu v0.9.9-0.20200102105924-c168afbc4702/go.mod h1:YcfNxx58rsSTdJ95aO/Ak/xMvMWjjrUmgkOumdxZUIo=
 github.com/pkg/errors v0.8.1 h1:iURUrRGxPUNPdy5/HRSm+Yj6okJ6UtLINN0Q9M4+h3I=
 github.com/pkg/errors v0.8.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=

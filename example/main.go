@@ -27,22 +27,12 @@ func main() {
 	}
 	log.Printf("State: %s\n", resp.State)
 	handler := new(sizeResponseHandler)
-	err = c.NewRequest().
-		Resource(resp.URL()).
-		HEAD().
-		Send().
-		HandleResponse(handler).
-		Error
+	err = c.HEAD(resp.URL()).Execute().HandleResponse(handler).Error
 	if err != nil {
 		panic(err)
 	}
 	log.Printf("Content-Length: %d b", handler.size)
-	err = c.NewRequest().
-		Resource(resp.URL()).
-		GET().
-		Send().
-		ReadBodyTo(mp4).
-		Error
+	err = c.GET(resp.URL()).Execute().ReadBodyTo(mp4).Error
 	if err != nil {
 		panic(err)
 	}
