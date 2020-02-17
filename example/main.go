@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
@@ -20,8 +21,8 @@ func main() {
 		panic(err)
 	}
 	defer os.RemoveAll(mp4.Path())
-	c := NewClient(nil, Config{Servers: []int{13}})
-	resp, err := c.Convert(webm, make(Opts).TargetFormat("mp4"))
+	c := new(Client).Start()
+	resp, err := c.Convert(context.TODO(), webm, make(Opts).TargetFormat("mp4"))
 	if err != nil {
 		panic(err)
 	}

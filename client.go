@@ -1,8 +1,10 @@
 package aconvert
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -17,55 +19,61 @@ var BaseURITemplate = "https://s%v.aconvert.com"
 // Client is an entity allowing access to aconvert.
 type Client struct {
 	*flu.Client
+	Servers    []int
+	MaxRetries int
+	Probe      *Probe
 	servers    chan server
-	maxRetries int
+	work       sync.WaitGroup
 }
 
-// NewClient creates a new aconvert HTTP client and runs server discovery in the background.
-func NewClient(http *flu.Client, config Config) *Client {
-	if config.Servers == nil {
-		config.Servers = DefaultServers
+func (c *Client) Start() *Client {
+	if c.Servers == nil {
+		c.Servers = DefaultServers
 	}
-	if http == nil {
-		http = flu.NewTransport().
+
+	if c.Client == nil {
+		c.Client = flu.NewTransport().
 			ResponseHeaderTimeout(3 * time.Minute).
 			NewClient().
 			Timeout(5 * time.Minute).
-			AcceptResponseCodes(200)
+			AcceptResponseCodes(http.StatusOK)
 	}
-	client := &Client{
-		Client:     http,
-		servers:    make(chan server, len(config.Servers)),
-		maxRetries: config.MaxRetries,
-	}
-	if config.Probe == nil {
-		log.Printf("Using %d configured servers", len(config.Servers))
-		for _, id := range config.Servers {
-			client.servers <- server{http, baseURI(id)}
+
+	c.servers = make(chan server, len(c.Servers))
+	if c.Probe == nil {
+		log.Printf("Using %d configured servers", len(c.Servers))
+		for _, id := range c.Servers {
+			c.servers <- server{c.Client, baseURI(id)}
 		}
 	} else {
-		go client.discover(config.Probe, config.Servers)
+		go c.discover(context.TODO(), c.Probe, c.Servers)
 	}
-	return client
+
+	return c
 }
 
 // Convert converts the provided media and returns a response.
-func (c *Client) Convert(in flu.Readable, opts Opts) (resp *Response, err error) {
+func (c *Client) Convert(ctx context.Context, in flu.Readable, opts Opts) (resp *Response, err error) {
 	body := opts.body(in)
-	for i := 0; i <= c.maxRetries; i++ {
-		server := <-c.servers
-		resp, err = server.convert(body)
-		c.servers <- server
-		if err != nil {
-			continue
-		} else {
+	for i := 0; i <= c.MaxRetries; i++ {
+		var server server
+		select {
+		case <-ctx.Done():
 			return
+		case server = <-c.servers:
+			resp, err = server.convert(ctx, body)
+			c.servers <- server
+			if err != nil {
+				continue
+			} else {
+				return
+			}
 		}
 	}
 	return
 }
 
-func (c *Client) discover(probe *Probe, servers []int) {
+func (c *Client) discover(ctx context.Context, probe *Probe, servers []int) {
 	discovered := new(int32)
 	workers := new(sync.WaitGroup)
 	workers.Add(len(servers))
@@ -73,11 +81,12 @@ func (c *Client) discover(probe *Probe, servers []int) {
 	for _, id := range servers {
 		go func(id int) {
 			server := server{c.Client, baseURI(id)}
-			if server.test(body, c.maxRetries) {
+			if err := server.test(ctx, body, c.MaxRetries); err == nil {
 				atomic.AddInt32(discovered, 1)
 				c.servers <- server
+			} else {
+				workers.Done()
 			}
-			workers.Done()
 		}(id)
 	}
 	workers.Wait()

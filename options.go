@@ -30,7 +30,7 @@ func (o Opts) Code(code int) Opts {
 	return o.Param("code", strconv.Itoa(code))
 }
 
-func (o Opts) body(in flu.Readable) flu.BodyWriter {
+func (o Opts) body(in flu.Readable) flu.BodyEncoderTo {
 	if url, ok := in.(flu.URL); ok {
 		return flu.FormValues(o.values()).
 			Add("filelocation", "online").

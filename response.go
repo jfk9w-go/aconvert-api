@@ -22,8 +22,8 @@ type Response struct {
 	host string
 }
 
-func (r *Response) ReadFrom(reader io.Reader) error {
-	err := flu.JSON(r).ReadFrom(reader)
+func (r *Response) DecodeFrom(reader io.Reader) error {
+	err := flu.JSON(r).DecodeFrom(reader)
 	if err != nil {
 		return err
 	}
