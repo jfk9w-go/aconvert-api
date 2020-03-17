@@ -14,7 +14,7 @@ import (
 
 //noinspection GoUnhandledErrorResult
 func main() {
-	webm := flu.File("example/testdata/test.webm")
+	webm := flu.File("example/testdata/test1.webm")
 	mp4 := flu.File(filepath.Join(os.TempDir(), "test.mp4"))
 	err := os.RemoveAll(mp4.Path())
 	if err != nil {
@@ -33,7 +33,7 @@ func main() {
 		panic(err)
 	}
 	log.Printf("Content-Length: %d b", handler.size)
-	err = c.GET(resp.URL()).Execute().ReadBodyTo(mp4).Error
+	err = c.GET(resp.URL()).Execute().DecodeBodyTo(mp4).Error
 	if err != nil {
 		panic(err)
 	}

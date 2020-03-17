@@ -2,7 +2,12 @@ package aconvert
 
 import (
 	"net/url"
+	"os"
 	"strconv"
+
+	"github.com/pkg/errors"
+
+	fluhttp "github.com/jfk9w-go/flu/http"
 
 	"github.com/jfk9w-go/flu"
 )
@@ -30,14 +35,49 @@ func (o Opts) Code(code int) Opts {
 	return o.Param("code", strconv.Itoa(code))
 }
 
-func (o Opts) body(in flu.Readable) flu.BodyEncoderTo {
+func (o Opts) makeRequest(client fluhttp.Client, in flu.Input) (req fluhttp.Request, err error) {
+	var body flu.EncoderTo
+	counter := new(flu.IOCounter)
 	if url, ok := in.(flu.URL); ok {
-		return flu.FormValues(o.values()).
+		form := fluhttp.Form{}.AddValues(o.values()).
 			Add("filelocation", "online").
-			Add("file", string(url))
+			Add("file", url.URL())
+
+		if err = counter.Count(form); err != nil {
+			err = errors.Wrap(err, "on multipart count")
+			return
+		}
+
+		body = form
 	} else {
-		return flu.MultipartFormValues(o.values()).
-			Add("filelocation", "local").
-			File("file", in)
+		multipart := fluhttp.NewMultipartForm().
+			AddValues(o.values()).
+			Add("filelocation", "local")
+
+		if err = counter.Count(multipart); err != nil {
+			err = errors.Wrap(err, "on multipart write count")
+			return
+		}
+
+		if file, ok := in.(flu.File); ok {
+			var stat os.FileInfo
+			if stat, err = os.Stat(file.Path()); err != nil {
+				return
+			}
+			*(*int64)(counter) += stat.Size()
+		} else {
+			if err = counter.Count(multipart); err != nil {
+				err = errors.Wrap(err, "on file write count")
+				return
+			}
+		}
+
+		*(*int64)(counter) += 170
+		multipart = multipart.File("file", in)
+		body = multipart
 	}
+
+	req = client.POST("").BodyEncoder(body)
+	req.Request.ContentLength = counter.Value()
+	return
 }

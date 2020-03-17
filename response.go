@@ -13,7 +13,7 @@ type Response struct {
 	// Server is the number of a server with the conversion result.
 	Server string `json:"server"`
 
-	// Filename is the file baseURI.
+	// Filename is the file url.
 	Filename string `json:"filename"`
 
 	// State is the request state (SUCCESS or ERROR).
@@ -23,7 +23,7 @@ type Response struct {
 }
 
 func (r *Response) DecodeFrom(reader io.Reader) error {
-	err := flu.JSON(r).DecodeFrom(reader)
+	err := flu.JSON{r}.DecodeFrom(reader)
 	if err != nil {
 		return err
 	}
