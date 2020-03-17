@@ -19,6 +19,12 @@ import (
 // %v is substituted with a corresponding server number.
 var BaseURITemplate = "https://s%v.aconvert.com"
 
+// Probe denotes a file to be used for discovering servers.
+type Probe struct {
+	File   flu.File
+	Format string
+}
+
 // Client is an entity allowing access to aconvert.
 type Client struct {
 	fluhttp.Client
@@ -29,7 +35,7 @@ type Client struct {
 	work       sync.WaitGroup
 }
 
-func (c *Client) Start() *Client {
+func (c *Client) Init() *Client {
 	if c.Servers == nil {
 		c.Servers = DefaultServers
 	}
