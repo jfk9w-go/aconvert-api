@@ -64,9 +64,9 @@ func (o Opts) makeRequest(client fluhttp.Client, in flu.Input) (req fluhttp.Requ
 				return
 			}
 			*(*int64)(counter) += stat.Size() + 170
-			multipart = multipart.File("file", in)
+			multipart = multipart.File("file", "", in)
 		} else {
-			multipart = multipart.File("file", in)
+			multipart = multipart.File("file", "", in)
 			if err = counter.Count(multipart); err != nil {
 				err = errors.Wrap(err, "on file write count")
 				return
