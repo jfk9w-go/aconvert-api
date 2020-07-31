@@ -21,8 +21,8 @@ func main() {
 		panic(err)
 	}
 	defer os.RemoveAll(mp4.Path())
-	c := new(Client).Init()
-	resp, err := c.Convert(context.TODO(), webm, make(Opts).TargetFormat("mp4"))
+	c := NewClient(nil, nil, nil)
+	resp, err := c.Convert(context.Background(), webm, make(Opts).TargetFormat("mp4"))
 	if err != nil {
 		panic(err)
 	}

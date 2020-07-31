@@ -24,7 +24,7 @@ func newConcreteClient(baseURI string) concreteClient {
 	return concreteClient{convertURL}
 }
 
-func (c concreteClient) test(ctx context.Context, req fluhttp.Request, maxRetries int) error {
+func (c concreteClient) test(ctx context.Context, req *fluhttp.Request, maxRetries int) error {
 	for i := 0; i <= maxRetries; i++ {
 		if i > 0 {
 			timeout := time.Duration(math.Pow(2, float64(i))) * time.Second
@@ -44,7 +44,7 @@ func (c concreteClient) test(ctx context.Context, req fluhttp.Request, maxRetrie
 	return errors.New("exceeded max retries")
 }
 
-func (c concreteClient) convert(ctx context.Context, req fluhttp.Request) (*Response, error) {
+func (c concreteClient) convert(ctx context.Context, req *fluhttp.Request) (*Response, error) {
 	resp := new(Response)
 	return resp, req.URL(c.convertURL).
 		Context(ctx).

@@ -35,13 +35,13 @@ func (o Opts) Code(code int) Opts {
 	return o.Param("code", strconv.Itoa(code))
 }
 
-func (o Opts) makeRequest(client fluhttp.Client, in flu.Input) (req fluhttp.Request, err error) {
+func (o Opts) makeRequest(client *fluhttp.Client, in flu.Input) (req *fluhttp.Request, err error) {
 	var body flu.EncoderTo
 	counter := new(flu.IOCounter)
-	if url, ok := in.(flu.URL); ok {
-		form := fluhttp.Form{}.AddValues(o.values()).
+	if u, ok := in.(flu.URL); ok {
+		form := new(fluhttp.Form).AddValues(o.values()).
 			Add("filelocation", "online").
-			Add("file", url.URL())
+			Add("file", u.URL())
 
 		if err = counter.Count(form); err != nil {
 			err = errors.Wrap(err, "on multipart count")

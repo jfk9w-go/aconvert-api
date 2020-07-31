@@ -19,6 +19,8 @@ import (
 // %v is substituted with a corresponding server number.
 var BaseURITemplate = "https://s%v.aconvert.com"
 
+var MaxRetries = 3
+
 // Probe denotes a file to be used for discovering servers.
 type Probe struct {
 	File   flu.File
@@ -27,35 +29,39 @@ type Probe struct {
 
 // Client is an entity allowing access to aconvert.
 type Client struct {
-	fluhttp.Client
-	Servers    []int
-	MaxRetries int
-	Probe      *Probe
-	servers    chan concreteClient
-	work       sync.WaitGroup
+	*fluhttp.Client
+	servers chan concreteClient
 }
 
-func (c *Client) Init() *Client {
-	if c.Servers == nil {
-		c.Servers = DefaultServers
+func NewClient(client *fluhttp.Client, servers []int, probe *Probe) *Client {
+	if servers == nil {
+		servers = DefaultServers
 	}
 
-	if c.Client.Client == nil {
-		c.Client = fluhttp.NewTransport().
+	if client == nil {
+		client = fluhttp.NewTransport().
 			ResponseHeaderTimeout(3 * time.Minute).
 			NewClient().
 			Timeout(5 * time.Minute).
 			AcceptStatus(http.StatusOK)
 	}
 
-	c.servers = make(chan concreteClient, len(c.Servers))
-	if c.Probe == nil {
-		log.Printf("Using %d configured servers", len(c.Servers))
-		for _, id := range c.Servers {
+	c := &Client{
+		Client:  client,
+		servers: make(chan concreteClient, len(servers)),
+	}
+
+	if probe == nil {
+		log.Printf("aconvert: using %d configured servers", len(servers))
+		for _, id := range servers {
 			c.servers <- newConcreteClient(baseURI(id))
 		}
 	} else {
-		go c.discover(context.TODO(), c.Probe, c.Servers)
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		go func(c *Client) {
+			c.discover(ctx, probe, servers)
+			cancel()
+		}(c)
 	}
 
 	return c
@@ -68,7 +74,7 @@ func (c *Client) Convert(ctx context.Context, in flu.Input, opts Opts) (resp *Re
 		err = errors.Wrap(err, "make request")
 		return
 	}
-	for i := 0; i <= c.MaxRetries; i++ {
+	for i := 0; i <= MaxRetries; i++ {
 		var server concreteClient
 		select {
 		case <-ctx.Done():
@@ -89,30 +95,30 @@ func (c *Client) Convert(ctx context.Context, in flu.Input, opts Opts) (resp *Re
 
 func (c *Client) discover(ctx context.Context, probe *Probe, servers []int) {
 	discovered := new(int32)
-	workers := new(sync.WaitGroup)
-	workers.Add(len(servers))
-	req, err := make(Opts).
-		TargetFormat(probe.Format).
-		makeRequest(c.Client, probe.File)
+	req, err := make(Opts).TargetFormat(probe.Format).makeRequest(c.Client, probe.File)
 	if err != nil {
-		log.Fatalf("Failed to make aconvert probe request: %s", err)
+		log.Fatalf("aconvert: probe request failed: %s", err)
 	}
+
+	work := new(sync.WaitGroup)
+	work.Add(len(servers))
 	for _, id := range servers {
 		go func(id int) {
+			defer work.Done()
 			server := newConcreteClient(baseURI(id))
-			if err := server.test(ctx, req, c.MaxRetries); err == nil {
+			if err := server.test(ctx, req, MaxRetries); err == nil {
 				atomic.AddInt32(discovered, 1)
 				c.servers <- server
-			} else {
-				workers.Done()
 			}
 		}(id)
 	}
-	workers.Wait()
+
+	work.Wait()
 	if *discovered == 0 {
 		panic("no hosts discovered")
+	} else {
+		log.Printf("aconvert: discovered %d servers", *discovered)
 	}
-	log.Printf("Discovered %d aconvert servers", *discovered)
 }
 
 func baseURI(id interface{}) string {
