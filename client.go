@@ -9,10 +9,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/jfk9w-go/flu"
 	fluhttp "github.com/jfk9w-go/flu/http"
+	"github.com/pkg/errors"
 )
 
 // BaseURITemplate is a string template used to generate base URIs.

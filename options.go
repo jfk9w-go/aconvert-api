@@ -43,7 +43,7 @@ func (o Opts) makeRequest(client *fluhttp.Client, in flu.Input) (req *fluhttp.Re
 			Add("filelocation", "online").
 			Add("file", u.URL())
 
-		if err = counter.Count(form); err != nil {
+		if err = flu.EncodeTo(form, counter); err != nil {
 			err = errors.Wrap(err, "on multipart count")
 			return
 		}
@@ -55,7 +55,7 @@ func (o Opts) makeRequest(client *fluhttp.Client, in flu.Input) (req *fluhttp.Re
 			Add("filelocation", "local")
 
 		if file, ok := in.(flu.File); ok {
-			if err = counter.Count(multipart); err != nil {
+			if err = flu.EncodeTo(multipart, counter); err != nil {
 				err = errors.Wrap(err, "on multipart write count")
 				return
 			}
@@ -63,11 +63,11 @@ func (o Opts) makeRequest(client *fluhttp.Client, in flu.Input) (req *fluhttp.Re
 			if stat, err = os.Stat(file.Path()); err != nil {
 				return
 			}
-			*(*int64)(counter) += stat.Size() + 170
+			counter.Add(stat.Size() + 170)
 			multipart = multipart.File("file", "", in)
 		} else {
 			multipart = multipart.File("file", "", in)
-			if err = counter.Count(multipart); err != nil {
+			if err = flu.EncodeTo(multipart, counter); err != nil {
 				err = errors.Wrap(err, "on file write count")
 				return
 			}
