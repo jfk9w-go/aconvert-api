@@ -127,6 +127,8 @@ github.com/inconshreveable/mousetrap v1.0.0/go.mod h1:PxqpIevigyE2G7u3NXJIT2ANyt
 github.com/influxdata/influxdb1-client v0.0.0-20191209144304-8bf82d3c094d/go.mod h1:qj24IKcXYK6Iy9ceXlo3Tc+vtHo9lIhSX5JddghvEPo=
 github.com/jfk9w-go/flu v0.9.17-0.20200911110833-4ba12d7ee95b h1:nwaOzKBOJY1sfhTPgyuA2BOpsqyS5O4Rp5PEXciAiDo=
 github.com/jfk9w-go/flu v0.9.17-0.20200911110833-4ba12d7ee95b/go.mod h1:TUyCE4dZQJnUIti5Kaa1i5msyvkj+cmpodVE1Kv+RPw=
+github.com/jfk9w-go/flu v0.9.17-0.20201009132640-81ee7a969fb5 h1:2n+W6Vkd2b5DcQT79Cd7hWNTw3viOfWfRTRmQHy8rM8=
+github.com/jfk9w-go/flu v0.9.17-0.20201009132640-81ee7a969fb5/go.mod h1:TUyCE4dZQJnUIti5Kaa1i5msyvkj+cmpodVE1Kv+RPw=
 github.com/jmespath/go-jmespath v0.0.0-20180206201540-c2b33e8439af/go.mod h1:Nht3zPeWKUH0NzdCt2Blrr5ys8VGpn0CEB0cQHVjt7k=
 github.com/jonboulle/clockwork v0.1.0/go.mod h1:Ii8DK3G1RaLaWxj9trq07+26W01tbo22gdxWY5EU2bo=
 github.com/jpillora/backoff v1.0.0/go.mod h1:J/6gKK9jxlEcS3zixgDgUAsiuZ7yrSoa/FX5e0EB2j4=
