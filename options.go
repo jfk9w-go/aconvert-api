@@ -41,7 +41,7 @@ func (o Opts) makeRequest(client *fluhttp.Client, in flu.Input) (req *fluhttp.Re
 	if u, ok := in.(flu.URL); ok {
 		form := new(fluhttp.Form).AddValues(o.values()).
 			Add("filelocation", "online").
-			Add("file", u.URL())
+			Add("file", u.Unmask())
 
 		if err = flu.EncodeTo(form, counter); err != nil {
 			err = errors.Wrap(err, "on multipart count")
