@@ -3,11 +3,12 @@ package aconvert
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/jfk9w-go/flu"
 	fluhttp "github.com/jfk9w-go/flu/http"
@@ -51,7 +52,7 @@ func NewClient(client *fluhttp.Client, servers []int, probe *Probe) *Client {
 	}
 
 	if probe == nil {
-		log.Printf("aconvert: using %d configured servers", len(servers))
+		logrus.Debugf("using %d configured aconvert servers", len(servers))
 		for _, id := range servers {
 			c.servers <- newConcreteClient(baseURI(id))
 		}
@@ -96,7 +97,7 @@ func (c *Client) discover(ctx context.Context, probe *Probe, servers []int) {
 	discovered := new(int32)
 	req, err := make(Opts).TargetFormat(probe.Format).makeRequest(c.Client, probe.File)
 	if err != nil {
-		log.Fatalf("aconvert: probe request failed: %s", err)
+		logrus.Fatalf("aconvert probe request failed: %s", err)
 	}
 
 	work := new(sync.WaitGroup)
@@ -116,7 +117,7 @@ func (c *Client) discover(ctx context.Context, probe *Probe, servers []int) {
 	if *discovered == 0 {
 		panic("no hosts discovered")
 	} else {
-		log.Printf("aconvert: discovered %d servers", *discovered)
+		logrus.Debugf("discovered %d aconvert servers", *discovered)
 	}
 }
 

@@ -2,11 +2,12 @@ package main
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
+
+	"github.com/sirupsen/logrus"
 
 	. "github.com/jfk9w-go/aconvert-api"
 	"github.com/jfk9w-go/flu"
@@ -26,13 +27,13 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	log.Printf("State: %s\n", resp.State)
+	logrus.Infof("State: %s\n", resp.State)
 	handler := new(sizeResponseHandler)
 	err = c.HEAD(resp.URL()).Execute().HandleResponse(handler).Error
 	if err != nil {
 		panic(err)
 	}
-	log.Printf("Content-Length: %d b", handler.size)
+	logrus.Infof("Content-Length: %d b", handler.size)
 	err = c.GET(resp.URL()).Execute().DecodeBodyTo(mp4).Error
 	if err != nil {
 		panic(err)
@@ -42,7 +43,7 @@ func main() {
 		panic(err)
 	}
 	size := stat.Size()
-	log.Printf("Downloaded file size: %d b", size)
+	logrus.Infof("Downloaded file size: %d b", size)
 }
 
 type sizeResponseHandler struct {
