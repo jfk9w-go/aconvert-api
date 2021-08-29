@@ -1,6 +1,6 @@
 # aconvert-api
 
-[![GoDoc](https://godoc.org/github.com/jfk9w-go/aconvert-api?status.svg)](https://godoc.org/github.com/jfk9w-go/aconvert-api) [![Build Status](https://travis-ci.org/jfk9w-go/aconvert-api.svg?branch=master)](https://travis-ci.org/jfk9w-go/aconvert-api)
+[![GoDoc](https://godoc.org/github.com/jfk9w-go/aconvert-api?status.svg)](https://godoc.org/github.com/jfk9w-go/aconvert-api) [![ci](https://github.com/jfk9w-go/aconvert-api/actions/workflows/ci.yml/badge.svg)](https://github.com/jfk9w-go/aconvert-api/actions/workflows/ci.yml)
 
 **aconvert-api** contains [aconvert.com](https://aconvert.com) HTTP client for converting media and other files.
 
