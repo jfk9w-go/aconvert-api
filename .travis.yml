@@ -1,8 +1,0 @@
-sudo: false
-language: go
-go:
-  - stable
-env:
-  - GO111MODULE=on
-script:
-  - go test -v ./...
