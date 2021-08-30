@@ -27,7 +27,7 @@ jobs:
         run: go install golang.org/x/tools/cmd/cover@latest
       - name: test
         run: |
-          go test -coverprofile=coverage-report ./...
+          go test -coverprofile=coverage-report -v ./...
           go tool cover -html=coverage-report -o coverage-report.html
       - name: upload coverage report artifact
         uses: actions/upload-artifact@v2
@@ -54,8 +54,13 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
+      - name: install go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go-version }}
       - name: lint
         uses: golangci/golangci-lint-action@v2
         with:
+          skip-go-installation: true
           skip-pkg-cache: true
           skip-build-cache: true

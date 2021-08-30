@@ -23,7 +23,7 @@ type Response struct {
 }
 
 func (r *Response) DecodeFrom(reader io.Reader) error {
-	err := flu.JSON{Value: r}.DecodeFrom(reader)
+	err := flu.JSON(r).DecodeFrom(reader)
 	if err != nil {
 		return err
 	}
