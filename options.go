@@ -5,11 +5,10 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/pkg/errors"
-
-	fluhttp "github.com/jfk9w-go/flu/http"
-
 	"github.com/jfk9w-go/flu"
+	fluhttp "github.com/jfk9w-go/flu/http"
+	"github.com/jfk9w-go/flu/metrics"
+	"github.com/pkg/errors"
 )
 
 type Opts url.Values
@@ -33,6 +32,11 @@ func (o Opts) VideoOptionSize(videoOptionSize int) Opts {
 
 func (o Opts) Code(code int) Opts {
 	return o.Param("code", strconv.Itoa(code))
+}
+
+func (o Opts) Labels() metrics.Labels {
+	return metrics.Labels{}.
+		Add("targetformat", o.values().Get("targetformat"))
 }
 
 func (o Opts) makeRequest(client *fluhttp.Client, in flu.Input) (req *fluhttp.Request, err error) {
@@ -63,6 +67,7 @@ func (o Opts) makeRequest(client *fluhttp.Client, in flu.Input) (req *fluhttp.Re
 			if stat, err = os.Stat(file.Path()); err != nil {
 				return
 			}
+
 			counter.Add(stat.Size() + 170)
 			multipart = multipart.File("file", "", in)
 		} else {

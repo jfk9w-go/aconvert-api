@@ -7,19 +7,12 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Response represents a aconvert response JSON.
 type Response struct {
-
-	// Server is the number of a server with the conversion result.
-	Server string `json:"server"`
-
-	// Filename is the file url.
+	Server   string `json:"server"`
 	Filename string `json:"filename"`
-
-	// State is the request state (SUCCESS or ERROR).
-	State string `json:"state"`
-
-	host string
+	State    string `json:"state"`
+	Result   string `json:"result"`
+	host     string `json:"-"`
 }
 
 func (r *Response) DecodeFrom(reader io.Reader) error {
@@ -27,10 +20,12 @@ func (r *Response) DecodeFrom(reader io.Reader) error {
 	if err != nil {
 		return err
 	}
+
 	if r.State != "SUCCESS" {
-		return errors.Errorf("state is %s, not SUCCESS", r.State)
+		return errors.Errorf("state is %s, not SUCCESS (%s)", r.State, r.Result)
 	}
-	r.host = baseURI(r.Server)
+
+	r.host = host(r.Server)
 	return nil
 }
 
