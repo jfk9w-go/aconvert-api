@@ -159,7 +159,7 @@ func (c *Client) discover(ctx context.Context, probe *Probe, serverIDs []int) {
 	if *discovered == 0 {
 		c.log.Fatal("no hosts discovered")
 	} else {
-		c.log.Info("discovered %d aconvert servers", *discovered)
+		c.log.Infof("discovered %d aconvert servers", *discovered)
 	}
 }
 
