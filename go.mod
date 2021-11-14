@@ -4,7 +4,7 @@ require (
 	github.com/jfk9w-go/flu v0.10.4-0.20211114134508-2e0070adf352
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.8.1
-	golang.org/x/sys v0.0.0-20211106132015-ebca88c72f68 // indirect
+	golang.org/x/sys v0.0.0-20211113001501-0c823b97ae02 // indirect
 )
 
 require (
