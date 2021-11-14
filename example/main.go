@@ -9,7 +9,6 @@ import (
 
 	. "github.com/jfk9w-go/aconvert-api"
 	"github.com/jfk9w-go/flu"
-	"github.com/jfk9w-go/flu/metrics"
 	"github.com/sirupsen/logrus"
 )
 
@@ -32,7 +31,7 @@ func main() {
 	}
 
 	ctx := context.Background()
-	client := NewClient(ctx, metrics.DummyRegistry{}, config)
+	client := NewClient(ctx, me3x.DummyRegistry{}, config)
 	resp, err := client.Convert(context.Background(), webm, make(Opts).TargetFormat("mp4"))
 	if err != nil {
 		panic(err)

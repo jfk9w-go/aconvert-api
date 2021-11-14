@@ -3,6 +3,7 @@ package aconvert
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"sync/atomic"
@@ -10,10 +11,9 @@ import (
 
 	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w-go/flu/backoff"
-	fluhttp "github.com/jfk9w-go/flu/http"
-	"github.com/jfk9w-go/flu/metrics"
+	httpf "github.com/jfk9w-go/flu/httpf"
+	"github.com/jfk9w-go/flu/me3x"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -34,19 +34,18 @@ type Config struct {
 
 // Client is an entity allowing access to aconvert.
 type Client struct {
-	*fluhttp.Client
+	*httpf.Client
 	servers chan server
-	metrics metrics.Registry
-	log     *logrus.Entry
+	metrics me3x.Registry
 }
 
-func NewClient(ctx context.Context, metrics metrics.Registry, config *Config) *Client {
+func NewClient(ctx context.Context, metrics me3x.Registry, config *Config) *Client {
 	if config.ServerIDs == nil {
 		config.ServerIDs = DefaultServerIDs
 	}
 
 	client := &Client{
-		Client: fluhttp.NewTransport().
+		Client: httpf.NewTransport().
 			ResponseHeaderTimeout(3*time.Minute).
 			NewClient().
 			Timeout(5*time.Minute).
@@ -54,11 +53,10 @@ func NewClient(ctx context.Context, metrics metrics.Registry, config *Config) *C
 			SetHeader("Referer", "https://www.aconvert.com/"),
 		servers: make(chan server, len(config.ServerIDs)),
 		metrics: metrics,
-		log:     logrus.WithField("service", "aconvert"),
 	}
 
 	if config.Probe == nil {
-		client.log.Infof("using %d configured aconvert servers", len(config.ServerIDs))
+		log.Printf("using %d configured aconvert servers", len(config.ServerIDs))
 		for _, id := range config.ServerIDs {
 			client.servers <- makeServer(id)
 		}
@@ -132,7 +130,6 @@ func (c *Client) discover(ctx context.Context, probe *Probe, serverIDs []int) {
 		serverID := serverIDs[i]
 		_ = work.Go(ctx, func(ctx context.Context) {
 			server := makeServer(serverID)
-			log := c.log.WithFields(server.Labels().Map())
 			retry := backoff.Retry{
 				Retries: MaxRetries,
 				Backoff: backoff.Exp{
@@ -146,9 +143,9 @@ func (c *Client) discover(ctx context.Context, probe *Probe, serverIDs []int) {
 			}
 
 			if err := retry.Do(ctx); err != nil {
-				log.Warnf("init failed: %s", err)
+				log.Printf("aconvert %s init failed: %s", server.Labels(), err)
 			} else {
-				log.Infof("init ok")
+				log.Printf("aconvert %s init ok", server.Labels())
 				atomic.AddInt32(discovered, 1)
 				c.servers <- server
 			}
@@ -157,16 +154,16 @@ func (c *Client) discover(ctx context.Context, probe *Probe, serverIDs []int) {
 
 	work.Wait()
 	if *discovered == 0 {
-		c.log.Fatal("no hosts discovered")
+		log.Panicf("no aconvert hosts discovered")
 	} else {
-		c.log.Infof("discovered %d aconvert servers", *discovered)
+		log.Printf("discovered %d aconvert servers", *discovered)
 	}
 }
 
 func makeServer(id interface{}) server {
 	url, err := url.Parse(host(id) + "/convert/convert-batch2.php")
 	if err != nil {
-		logrus.Fatalf("invalid convert-batch URL: %s", err)
+		log.Panicf("invalid convert-batch URL: %s", err)
 	}
 
 	return server{url, id}
@@ -181,7 +178,7 @@ type server struct {
 	id         interface{}
 }
 
-func (s server) Labels() metrics.Labels {
-	return metrics.Labels{}.
+func (s server) Labels() me3x.Labels {
+	return me3x.Labels{}.
 		Add("server", s.id)
 }
