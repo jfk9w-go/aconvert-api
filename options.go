@@ -39,9 +39,14 @@ func (o Opts) Labels() me3x.Labels {
 		Add("targetformat", o.values().Get("targetformat"))
 }
 
+const Legal = "We DO NOT allow directly running our PHP programs from any third-party websites, software or apps. Illegal piracy may return files with warning messages!"
+
 func (o Opts) makeRequest(client *httpf.Client, in flu.Input) (req *httpf.Request, err error) {
 	var body flu.EncoderTo
 	counter := new(flu.IOCounter)
+	o.values().Set("legal", Legal)
+	o.values().Set("chunks", "1")
+	o.values().Set("chunk", "0")
 	if u, ok := in.(flu.URL); ok {
 		form := new(httpf.Form).AddValues(o.values()).
 			Add("filelocation", "online").

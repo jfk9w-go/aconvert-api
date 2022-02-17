@@ -161,7 +161,7 @@ func (c *Client) discover(ctx context.Context, probe *Probe, serverIDs []int) {
 }
 
 func makeServer(id interface{}) server {
-	url, err := url.Parse(host(id) + "/convert/convert-batch2.php")
+	url, err := url.Parse(host(id) + "/convert/convert3.php")
 	if err != nil {
 		log.Panicf("invalid convert-batch URL: %s", err)
 	}
