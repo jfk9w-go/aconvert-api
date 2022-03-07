@@ -9,9 +9,10 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/jfk9w-go/flu/httpf"
+
 	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w-go/flu/backoff"
-	httpf "github.com/jfk9w-go/flu/httpf"
 	"github.com/jfk9w-go/flu/me3x"
 	"github.com/pkg/errors"
 )
@@ -30,11 +31,12 @@ type Probe struct {
 type Config struct {
 	ServerIDs []int
 	Probe     *Probe
+	Timeout   flu.Duration
 }
 
 // Client is an entity allowing access to aconvert.
 type Client struct {
-	*httpf.Client
+	httpf.Client
 	servers chan server
 	metrics me3x.Registry
 }
@@ -44,13 +46,10 @@ func NewClient(ctx context.Context, metrics me3x.Registry, config *Config) *Clie
 		config.ServerIDs = DefaultServerIDs
 	}
 
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.ResponseHeaderTimeout = config.Timeout.GetOrDefault(10 * time.Minute)
 	client := &Client{
-		Client: httpf.NewTransport().
-			ResponseHeaderTimeout(3*time.Minute).
-			NewClient().
-			Timeout(5*time.Minute).
-			AcceptStatus(http.StatusOK).
-			SetHeader("Referer", "https://www.aconvert.com/"),
+		Client:  &http.Client{Transport: withReferer(transport)},
 		servers: make(chan server, len(config.ServerIDs)),
 		metrics: metrics,
 	}
@@ -100,7 +99,7 @@ func (c *Client) Convert(ctx context.Context, in flu.Input, opts Opts) (*Respons
 }
 
 func (c *Client) convert(ctx context.Context, server server, in flu.Input, opts Opts) (*Response, error) {
-	req, err := opts.Code(81000).makeRequest(c.Client, in)
+	req, err := opts.Code(81000).makeRequest(server.convertURL, in)
 	if err != nil {
 		return nil, errors.Wrap(err, "make request")
 	}
@@ -110,11 +109,10 @@ func (c *Client) convert(ctx context.Context, server server, in flu.Input, opts 
 	metrics.Counter("attempts", labels).Inc()
 
 	resp := new(Response)
-	if err := req.Context(ctx).
-		URL(server.convertURL).
-		Execute().
+	if err := req.
+		Exchange(ctx, c.Client).
 		DecodeBody(resp).
-		Error; err != nil {
+		Error(); err != nil {
 		metrics.Counter("failed", labels).Inc()
 		return nil, err
 	} else {
@@ -132,10 +130,7 @@ func (c *Client) discover(ctx context.Context, probe *Probe, serverIDs []int) {
 			server := makeServer(serverID)
 			retry := backoff.Retry{
 				Retries: MaxRetries,
-				Backoff: backoff.Exp{
-					Base:  2,
-					Power: 1,
-				},
+				Backoff: backoff.Exp{Base: 2, Power: 1},
 				Body: func(ctx context.Context) error {
 					_, err := c.convert(ctx, server, probe.File, make(Opts).TargetFormat(probe.Format))
 					return err
@@ -161,12 +156,12 @@ func (c *Client) discover(ctx context.Context, probe *Probe, serverIDs []int) {
 }
 
 func makeServer(id interface{}) server {
-	url, err := url.Parse(host(id) + "/convert/convert3.php")
-	if err != nil {
+	value := host(id) + "/convert/convert4.php"
+	if _, err := url.Parse(value); err != nil {
 		log.Panicf("invalid convert-batch URL: %s", err)
 	}
 
-	return server{url, id}
+	return server{value, id}
 }
 
 func host(serverID interface{}) string {
@@ -174,11 +169,18 @@ func host(serverID interface{}) string {
 }
 
 type server struct {
-	convertURL *url.URL
+	convertURL string
 	id         interface{}
 }
 
 func (s server) Labels() me3x.Labels {
 	return me3x.Labels{}.
 		Add("server", s.id)
+}
+
+func withReferer(rt http.RoundTripper) httpf.RoundTripperFunc {
+	return func(req *http.Request) (*http.Response, error) {
+		req.Header.Set("Referer", "https://www.aconvert.com/")
+		return rt.RoundTrip(req)
+	}
 }

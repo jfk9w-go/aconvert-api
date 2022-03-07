@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -9,18 +10,19 @@ import (
 
 	. "github.com/jfk9w-go/aconvert-api"
 	"github.com/jfk9w-go/flu"
+	"github.com/jfk9w-go/flu/httpf"
 	"github.com/jfk9w-go/flu/me3x"
-	"github.com/sirupsen/logrus"
 )
 
 //noinspection GoUnhandledErrorResult
 func main() {
-	logrus.SetLevel(logrus.TraceLevel)
-	webm := flu.File("testdata/test1.webm")
-	mp4 := flu.File(filepath.Join(os.TempDir(), "test.mp4"))
-	err := os.RemoveAll(mp4.Path())
-	if err != nil {
-		panic(err)
+	var (
+		webm = flu.File("testdata/test1.webm")
+		mp4  = flu.File(filepath.Join(os.TempDir(), "test.mp4"))
+	)
+
+	if err := os.RemoveAll(mp4.Path()); err != nil {
+		log.Panicf("remove %s: %v", mp4, err)
 	}
 
 	defer os.RemoveAll(mp4.Path())
@@ -31,40 +33,43 @@ func main() {
 		},
 	}
 
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	client := NewClient(ctx, me3x.DummyRegistry{}, config)
-	resp, err := client.Convert(context.Background(), webm, make(Opts).TargetFormat("mp4"))
+	resp, err := client.Convert(ctx, webm, make(Opts).TargetFormat("mp4"))
 	if err != nil {
-		panic(err)
-	}
-	logrus.Infof("State: %s\n", resp.State)
-	handler := new(sizeResponseHandler)
-	err = client.HEAD(resp.URL()).Execute().HandleResponse(handler).Error
-	if err != nil {
-		panic(err)
+		log.Panicf("convert %s: %v", webm, err)
+	} else {
+		log.Printf("response state: %s\n", resp.State)
 	}
 
-	logrus.Infof("Content-Length: %d b", handler.size)
-	err = client.GET(resp.URL()).Execute().DecodeBodyTo(mp4).Error
-	if err != nil {
-		panic(err)
+	var size int64
+	if err := httpf.HEAD(resp.URL()).
+		Exchange(ctx, client).
+		HandleFunc(func(resp *http.Response) (err error) {
+			header := resp.Header.Get("Content-Length")
+			size, err = strconv.ParseInt(header, 10, 64)
+			return
+		}).
+		Error(); err != nil {
+		log.Panicf("get size from head request: %v", err)
+	} else {
+		log.Printf("response content length: %d b", size)
+	}
+
+	if err := httpf.GET(resp.URL()).
+		Exchange(ctx, client).
+		DecodeBodyTo(mp4).
+		Error(); err != nil {
+		log.Panicf("get mp4 file: %v", err)
 	}
 
 	stat, err := os.Stat(mp4.Path())
 	if err != nil {
-		panic(err)
+		log.Panicf("stat mp4 file: %v", err)
 	}
 
-	size := stat.Size()
-	logrus.Infof("Downloaded file size: %d b", size)
-}
-
-type sizeResponseHandler struct {
-	size int64
-}
-
-func (h *sizeResponseHandler) Handle(resp *http.Response) (err error) {
-	header := resp.Header.Get("Content-Length")
-	h.size, err = strconv.ParseInt(header, 10, 64)
-	return
+	size = stat.Size()
+	log.Printf("downloaded file size: %d b", size)
 }

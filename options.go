@@ -41,16 +41,17 @@ func (o Opts) Labels() me3x.Labels {
 
 const Legal = "We DO NOT allow directly running our PHP programs from any third-party websites, software or apps. Illegal piracy may return files with warning messages!"
 
-func (o Opts) makeRequest(client *httpf.Client, in flu.Input) (req *httpf.Request, err error) {
+func (o Opts) makeRequest(url string, in flu.Input) (req *httpf.RequestBuilder, err error) {
 	var body flu.EncoderTo
 	counter := new(flu.IOCounter)
 	o.values().Set("legal", Legal)
 	o.values().Set("chunks", "1")
 	o.values().Set("chunk", "0")
+	form := new(httpf.Form).SetAll(o.values())
 	if u, ok := in.(flu.URL); ok {
-		form := new(httpf.Form).AddValues(o.values()).
-			Add("filelocation", "online").
-			Add("file", u.Unmask())
+		form.
+			Set("filelocation", "online").
+			Set("file", u.Unmask())
 
 		if err = flu.EncodeTo(form, counter); err != nil {
 			err = errors.Wrap(err, "on multipart count")
@@ -59,9 +60,9 @@ func (o Opts) makeRequest(client *httpf.Client, in flu.Input) (req *httpf.Reques
 
 		body = form
 	} else {
-		multipart := httpf.NewMultipartForm().
-			AddValues(o.values()).
-			Add("filelocation", "local")
+		multipart := form.
+			Set("filelocation", "local").
+			Multipart()
 
 		if file, ok := in.(flu.File); ok {
 			if err = flu.EncodeTo(multipart, counter); err != nil {
@@ -86,7 +87,7 @@ func (o Opts) makeRequest(client *httpf.Client, in flu.Input) (req *httpf.Reques
 		body = multipart
 	}
 
-	req = client.POST("").BodyEncoder(body)
+	req = httpf.POST(url, body)
 	req.Request.ContentLength = counter.Value()
 	return
 }
