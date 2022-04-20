@@ -3,23 +3,17 @@ package aconvert
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"sync/atomic"
-	"time"
-
-	"github.com/jfk9w-go/flu/httpf"
 
 	"github.com/jfk9w-go/flu"
+	"github.com/jfk9w-go/flu/apfel"
 	"github.com/jfk9w-go/flu/backoff"
-	"github.com/jfk9w-go/flu/me3x"
+	"github.com/jfk9w-go/flu/httpf"
+	"github.com/jfk9w-go/flu/logf"
+	"github.com/jfk9w-go/flu/syncf"
 	"github.com/pkg/errors"
-)
-
-var (
-	DefaultServerIDs = []int{3 /*, 5*/, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27}
-	MaxRetries       = 3
 )
 
 // Probe denotes a file to be used for discovering servers.
@@ -29,50 +23,71 @@ type Probe struct {
 }
 
 type Config struct {
-	ServerIDs []int
-	Probe     *Probe
-	Timeout   flu.Duration
+	ServerIDs  []int        `yaml:"serverIds,omitempty" doc:"Server IDs to use for conversion." default:"[3, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29]"`
+	Probe      *Probe       `yaml:"probe,omitempty" doc:"Probe parameters for checking servers."`
+	Timeout    flu.Duration `yaml:"timeout,omitempty" doc:"Timeout to use while making HTTP requests." default:"5m"`
+	MaxRetries int          `yaml:"maxRetries,omitempty" doc:"Max request retries before giving up." default:"3"`
+}
+
+type Context interface {
+	AconvertConfig() Config
 }
 
 // Client is an entity allowing access to aconvert.
-type Client struct {
-	httpf.Client
-	servers chan server
-	metrics me3x.Registry
+type Client[C Context] struct {
+	*client
 }
 
-func NewClient(ctx context.Context, metrics me3x.Registry, config *Config) *Client {
-	if config.ServerIDs == nil {
-		config.ServerIDs = DefaultServerIDs
-	}
+func (c *Client[C]) Include(ctx context.Context, app apfel.MixinApp[C]) error {
+	return c.Standalone(ctx, app.Config().AconvertConfig())
+}
 
-	transport := http.DefaultTransport.(*http.Transport).Clone()
-	transport.ResponseHeaderTimeout = config.Timeout.GetOrDefault(10 * time.Minute)
-	client := &Client{
-		Client:  &http.Client{Transport: withReferer(transport)},
-		servers: make(chan server, len(config.ServerIDs)),
-		metrics: metrics,
+func (c *Client[C]) Standalone(ctx context.Context, config Config) error {
+	transport := httpf.NewDefaultTransport()
+	transport.ResponseHeaderTimeout = config.Timeout.Value
+	client := &client{
+		client:     &http.Client{Transport: withReferer(transport)},
+		servers:    make(chan server, len(config.ServerIDs)),
+		maxRetries: config.MaxRetries,
 	}
 
 	if config.Probe == nil {
-		log.Printf("using %d configured aconvert servers", len(config.ServerIDs))
 		for _, id := range config.ServerIDs {
-			client.servers <- makeServer(id)
+			client.servers <- client.makeServer(ctx, id)
 		}
 	} else {
-		_ = new(flu.WaitGroup).Go(ctx, func(ctx context.Context) {
+		_, _ = syncf.Go(ctx, func(ctx context.Context) {
 			client.discover(ctx, config.Probe, config.ServerIDs)
 		})
 	}
 
-	return client
+	c.client = client
+	configData, _ := flu.ToString(flu.PipeInput(apfel.JSONViaYAML(config)))
+	logf.Get(c).Tracef(ctx, "started with %s", configData)
+	return nil
+}
+
+type client struct {
+	client     httpf.Client
+	servers    chan server
+	maxRetries int
+}
+
+func (c *client) String() string {
+	return "aconvert.client"
+}
+
+func (c *client) Do(req *http.Request) (*http.Response, error) {
+	resp, err := c.client.Do(req)
+	//logf.Get(c).Resultf(req.Context(), logf.Trace, logf.Warn, "%s => %v", httpf.RequestBuilder{Request: req}, err)
+	return resp, err
 }
 
 // Convert converts the provided media and returns a response.
-func (c *Client) Convert(ctx context.Context, in flu.Input, opts Opts) (*Response, error) {
+func (c *client) Convert(ctx context.Context, in flu.Input, opts Opts) (*Response, error) {
 	var resp *Response
 	retry := backoff.Retry{
-		Retries: MaxRetries,
+		Retries: c.maxRetries,
 		Backoff: backoff.Const(0),
 		Body: func(ctx context.Context) error {
 			select {
@@ -98,38 +113,29 @@ func (c *Client) Convert(ctx context.Context, in flu.Input, opts Opts) (*Respons
 	return resp, retry.Do(ctx)
 }
 
-func (c *Client) convert(ctx context.Context, server server, in flu.Input, opts Opts) (*Response, error) {
+func (c *client) convert(ctx context.Context, server server, in flu.Input, opts Opts) (*Response, error) {
 	req, err := opts.Code(81000).makeRequest(server.convertURL, in)
 	if err != nil {
 		return nil, errors.Wrap(err, "make request")
 	}
 
-	metrics := c.metrics.WithPrefix("convert")
-	labels := server.Labels().AddAll(opts.Labels())
-	metrics.Counter("attempts", labels).Inc()
-
-	resp := new(Response)
-	if err := req.
-		Exchange(ctx, c.Client).
-		DecodeBody(resp).
-		Error(); err != nil {
-		metrics.Counter("failed", labels).Inc()
+	var resp Response
+	if err := req.Exchange(ctx, c).DecodeBody(&resp).Error(); err != nil {
 		return nil, err
-	} else {
-		metrics.Counter("ok", labels).Inc()
-		return resp, nil
 	}
+
+	return &resp, nil
 }
 
-func (c *Client) discover(ctx context.Context, probe *Probe, serverIDs []int) {
-	discovered := new(int32)
-	work := new(flu.WaitGroup)
+func (c *client) discover(ctx context.Context, probe *Probe, serverIDs []int) {
+	var discovered int32
+	var work syncf.WaitGroup
 	for i := range serverIDs {
 		serverID := serverIDs[i]
-		_ = work.Go(ctx, func(ctx context.Context) {
-			server := makeServer(serverID)
+		_, _ = syncf.GoWith(ctx, work.Spawn, func(ctx context.Context) {
+			server := c.makeServer(ctx, serverID)
 			retry := backoff.Retry{
-				Retries: MaxRetries,
+				Retries: c.maxRetries,
 				Backoff: backoff.Exp{Base: 2, Power: 1},
 				Body: func(ctx context.Context) error {
 					_, err := c.convert(ctx, server, probe.File, make(Opts).TargetFormat(probe.Format))
@@ -137,28 +143,27 @@ func (c *Client) discover(ctx context.Context, probe *Probe, serverIDs []int) {
 				},
 			}
 
-			if err := retry.Do(ctx); err != nil {
-				log.Printf("aconvert %s init failed: %s", server.Labels(), err)
-			} else {
-				log.Printf("aconvert %s init ok", server.Labels())
-				atomic.AddInt32(discovered, 1)
+			err := retry.Do(ctx)
+			logf.Get(c).Resultf(ctx, logf.Debug, logf.Warn, "server %d init: %v", err)
+			if err == nil {
+				atomic.AddInt32(&discovered, 1)
 				c.servers <- server
 			}
 		})
 	}
 
 	work.Wait()
-	if *discovered == 0 {
-		log.Panicf("no aconvert hosts discovered")
+	if discovered == 0 {
+		logf.Get(c).Errorf(ctx, "no hosts discovered")
 	} else {
-		log.Printf("discovered %d aconvert servers", *discovered)
+		logf.Get(c).Infof(ctx, "discovered %d servers", discovered)
 	}
 }
 
-func makeServer(id interface{}) server {
+func (c *client) makeServer(ctx context.Context, id interface{}) server {
 	value := host(id) + "/convert/convert4.php"
 	if _, err := url.Parse(value); err != nil {
-		log.Panicf("invalid convert-batch URL: %s", err)
+		logf.Get(c).Panicf(ctx, "invalid convert-batch URL: %s", err)
 	}
 
 	return server{value, id}
@@ -173,14 +178,10 @@ type server struct {
 	id         interface{}
 }
 
-func (s server) Labels() me3x.Labels {
-	return me3x.Labels{}.
-		Add("server", s.id)
-}
-
 func withReferer(rt http.RoundTripper) httpf.RoundTripperFunc {
 	return func(req *http.Request) (*http.Response, error) {
 		req.Header.Set("Referer", "https://www.aconvert.com/")
+		req.Header.Set("Origin", "https://www.aconvert.com")
 		return rt.RoundTrip(req)
 	}
 }

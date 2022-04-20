@@ -6,8 +6,7 @@ import (
 	"strconv"
 
 	"github.com/jfk9w-go/flu"
-	httpf "github.com/jfk9w-go/flu/httpf"
-	"github.com/jfk9w-go/flu/me3x"
+	"github.com/jfk9w-go/flu/httpf"
 	"github.com/pkg/errors"
 )
 
@@ -34,24 +33,18 @@ func (o Opts) Code(code int) Opts {
 	return o.Param("code", strconv.Itoa(code))
 }
 
-func (o Opts) Labels() me3x.Labels {
-	return me3x.Labels{}.
-		Add("targetformat", o.values().Get("targetformat"))
-}
-
-const Legal = "We DO NOT allow directly running our PHP programs from any third-party websites, software or apps. Illegal piracy may return files with warning messages!"
+const Legal = "We DO NOT allow using our PHP programs in any third-party websites, software or apps! We will report abuse to your server provider, Google Play and App store if illegal usage found!"
 
 func (o Opts) makeRequest(url string, in flu.Input) (req *httpf.RequestBuilder, err error) {
 	var body flu.EncoderTo
 	counter := new(flu.IOCounter)
+	o.values().Set("oAuthToken", "")
 	o.values().Set("legal", Legal)
-	o.values().Set("chunks", "1")
-	o.values().Set("chunk", "0")
 	form := new(httpf.Form).SetAll(o.values())
 	if u, ok := in.(flu.URL); ok {
 		form.
 			Set("filelocation", "online").
-			Set("file", u.Unmask())
+			Set("file", u.String())
 
 		if err = flu.EncodeTo(form, counter); err != nil {
 			err = errors.Wrap(err, "on multipart count")
@@ -70,7 +63,7 @@ func (o Opts) makeRequest(url string, in flu.Input) (req *httpf.RequestBuilder, 
 				return
 			}
 			var stat os.FileInfo
-			if stat, err = os.Stat(file.Path()); err != nil {
+			if stat, err = os.Stat(file.String()); err != nil {
 				return
 			}
 
