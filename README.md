@@ -1,16 +1,9 @@
 # aconvert-api
 
-[![GoDoc](https://godoc.org/github.com/jfk9w-go/aconvert-api?status.svg)](https://godoc.org/github.com/jfk9w-go/aconvert-api) [![ci](https://github.com/jfk9w-go/aconvert-api/actions/workflows/ci.yml/badge.svg)](https://github.com/jfk9w-go/aconvert-api/actions/workflows/ci.yml)
+[![ci](https://github.com/jfk9w-go/aconvert-api/actions/workflows/ci.yml/badge.svg)](https://github.com/jfk9w-go/aconvert-api/actions/workflows/ci.yml)
+[![GoDoc](https://godoc.org/github.com/jfk9w-go/aconvert-api?status.svg)](https://godoc.org/github.com/jfk9w-go/aconvert-api)
 
-**aconvert-api** contains [aconvert.com](https://aconvert.com) HTTP client for converting media and other files.
+**aconvert-api** contains [aconvert.com](https://aconvert.com) client for converting media and other files.
 
-## Installation
-
-Simply install the package via go get:
-```bash
-go get -u github.com/jfk9w-go/aconvert-api
-```
-
-## Example
-
-You can find examples [here](https://github.com/jfk9w-go/aconvert-api/blob/master/example_test.go).
+See [godoc](https://godoc.org/github.com/jfk9w-go/aconvert-api) for more information. 
+You can find basic usage example [here](https://github.com/jfk9w-go/aconvert-api/blob/master/example/main.go).

@@ -7,11 +7,16 @@ import (
 	"github.com/pkg/errors"
 )
 
+// Response is the aconvert.com conversion response.
 type Response struct {
-	Server   string `json:"server"`
+	// Server is the ID of the server which performed the conversion.
+	Server string `json:"server"`
+	// Filename is the resulting file name.
 	Filename string `json:"filename"`
-	State    string `json:"state"`
-	Result   string `json:"result"`
+	// State is the conversion state.
+	State string `json:"state"`
+	// Result is sometimes returned instead of State (or vice-versa).
+	Result string `json:"result"`
 
 	data string
 	host string
@@ -45,6 +50,7 @@ func (r *Response) String() string {
 	return r.data
 }
 
+// URL returns converted file URL.
 func (r *Response) URL() string {
 	return r.host + "/convert/p3r68-cdx67/" + r.Filename
 }

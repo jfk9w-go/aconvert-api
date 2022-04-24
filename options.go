@@ -10,36 +10,39 @@ import (
 	"github.com/pkg/errors"
 )
 
-type Opts url.Values
+// Options is the conversion options.
+type Options url.Values
 
-func (o Opts) values() url.Values {
+func (o Options) values() url.Values {
 	return url.Values(o)
 }
 
-func (o Opts) Param(key, value string) Opts {
+// Option sets the conversion option.
+func (o Options) Option(key, value string) Options {
 	o.values().Set(key, value)
 	return o
 }
 
-func (o Opts) TargetFormat(targetFormat string) Opts {
-	return o.Param("targetformat", targetFormat)
+// TargetFormat sets target conversion format ("mp4", etc.).
+func (o Options) TargetFormat(targetFormat string) Options {
+	return o.Option("targetformat", targetFormat)
 }
 
-func (o Opts) VideoOptionSize(videoOptionSize int) Opts {
-	return o.Param("videooptionsize", strconv.Itoa(videoOptionSize))
+func (o Options) VideoOptionSize(videoOptionSize int) Options {
+	return o.Option("videooptionsize", strconv.Itoa(videoOptionSize))
 }
 
-func (o Opts) Code(code int) Opts {
-	return o.Param("code", strconv.Itoa(code))
+func (o Options) Code(code int) Options {
+	return o.Option("code", strconv.Itoa(code))
 }
 
-const Legal = "We DO NOT allow using our PHP programs in any third-party websites, software or apps! We will report abuse to your server provider, Google Play and App store if illegal usage found!"
+const legal = "We DO NOT allow using our PHP programs in any third-party websites, software or apps! We will report abuse to your server provider, Google Play and App store if illegal usage found!"
 
-func (o Opts) makeRequest(url string, in flu.Input) (req *httpf.RequestBuilder, err error) {
+func (o Options) makeRequest(url string, in flu.Input) (req *httpf.RequestBuilder, err error) {
 	var body flu.EncoderTo
 	counter := new(flu.IOCounter)
 	o.values().Set("oAuthToken", "")
-	o.values().Set("legal", Legal)
+	o.values().Set("legal", legal)
 	form := new(httpf.Form).SetAll(o.values())
 	if u, ok := in.(flu.URL); ok {
 		form.

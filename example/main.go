@@ -1,3 +1,5 @@
+// Package main demonstrates how to convert a webm video file to mp4 format
+// with github.com/jfk9w-go/aconvert-api.
 package main
 
 import (
@@ -35,7 +37,7 @@ func main() {
 		logf.Panicf(ctx, "init: %v", err)
 	}
 
-	resp, err := client.Convert(ctx, webm, make(Opts).TargetFormat("mp4"))
+	resp, err := client.Convert(ctx, webm, make(Options).TargetFormat("mp4"))
 	logf.Resultf(ctx, logf.Info, logf.Panic, "convert %s => %s (%v)", webm, resp, err)
 
 	var size int64

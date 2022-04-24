@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"sync/atomic"
+	"time"
 
 	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w-go/flu/apfel"
@@ -18,22 +19,24 @@ import (
 
 // Probe denotes a file to be used for discovering servers.
 type Probe struct {
-	File   flu.File
-	Format string
+	File flu.File `yaml:"file" doc:"Path to the file which will be used for testing (discovering) servers."`
+	// Format is the target conversion format for the File.
+	Format string `yaml:"format" doc:"Target conversion format for the file." example:"mp4"`
 }
 
 type Config struct {
 	ServerIDs  []int        `yaml:"serverIds,omitempty" doc:"Server IDs to use for conversion." default:"[3, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29]"`
-	Probe      *Probe       `yaml:"probe,omitempty" doc:"Probe parameters for checking servers."`
+	Probe      *Probe       `yaml:"probe,omitempty" doc:"Probe parameters for checking servers. If set, servers from serverIds list will be tested before adding to the client pool."`
 	Timeout    flu.Duration `yaml:"timeout,omitempty" doc:"Timeout to use while making HTTP requests." default:"5m"`
 	MaxRetries int          `yaml:"maxRetries,omitempty" doc:"Max request retries before giving up." default:"3"`
 }
 
+// Context is the application configuration interface.
 type Context interface {
 	AconvertConfig() Config
 }
 
-// Client is an entity allowing access to aconvert.
+// Client is a mixin encapsulating aconvert.com client.
 type Client[C Context] struct {
 	*client
 }
@@ -42,6 +45,9 @@ func (c *Client[C]) Include(ctx context.Context, app apfel.MixinApp[C]) error {
 	return c.Standalone(ctx, app.Config().AconvertConfig())
 }
 
+// Standalone allows to initialize the Client outside github.com/jfk9w-go/flu/apfel application context.
+// It is recommended to create Config instance with apfel.Default[Config]() in this case to properly initialize
+// default value.
 func (c *Client[C]) Standalone(ctx context.Context, config Config) error {
 	transport := httpf.NewDefaultTransport()
 	transport.ResponseHeaderTimeout = config.Timeout.Value
@@ -79,12 +85,12 @@ func (c *client) String() string {
 
 func (c *client) Do(req *http.Request) (*http.Response, error) {
 	resp, err := c.client.Do(req)
-	//logf.Get(c).Resultf(req.Context(), logf.Trace, logf.Warn, "%s => %v", httpf.RequestBuilder{Request: req}, err)
+	logf.Get(c).Resultf(req.Context(), logf.Trace, logf.Warn, "%s => %v", httpf.RequestBuilder{Request: req}, err)
 	return resp, err
 }
 
 // Convert converts the provided media and returns a response.
-func (c *client) Convert(ctx context.Context, in flu.Input, opts Opts) (*Response, error) {
+func (c *client) Convert(ctx context.Context, in flu.Input, opts Options) (*Response, error) {
 	var resp *Response
 	retry := backoff.Retry{
 		Retries: c.maxRetries,
@@ -113,7 +119,7 @@ func (c *client) Convert(ctx context.Context, in flu.Input, opts Opts) (*Respons
 	return resp, retry.Do(ctx)
 }
 
-func (c *client) convert(ctx context.Context, server server, in flu.Input, opts Opts) (*Response, error) {
+func (c *client) convert(ctx context.Context, server server, in flu.Input, opts Options) (*Response, error) {
 	req, err := opts.Code(81000).makeRequest(server.convertURL, in)
 	if err != nil {
 		return nil, errors.Wrap(err, "make request")
@@ -136,9 +142,9 @@ func (c *client) discover(ctx context.Context, probe *Probe, serverIDs []int) {
 			server := c.makeServer(ctx, serverID)
 			retry := backoff.Retry{
 				Retries: c.maxRetries,
-				Backoff: backoff.Exp{Base: 2, Power: 1},
+				Backoff: backoff.Exp{Base: time.Second, Factor: 1.5},
 				Body: func(ctx context.Context) error {
-					_, err := c.convert(ctx, server, probe.File, make(Opts).TargetFormat(probe.Format))
+					_, err := c.convert(ctx, server, probe.File, make(Options).TargetFormat(probe.Format))
 					return err
 				},
 			}
