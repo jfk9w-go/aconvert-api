@@ -134,8 +134,8 @@ github.com/gopherjs/gopherjs v1.17.2/go.mod h1:pRRIvn/QzFLrKfvEz3qUuEhtE/zLCWfre
 github.com/hashicorp/golang-lru v0.5.0/go.mod h1:/m3WP610KZHVQ1SGc6re/UDhFvYD7pJ4Ao+sR/qLZy8=
 github.com/hashicorp/golang-lru v0.5.1/go.mod h1:/m3WP610KZHVQ1SGc6re/UDhFvYD7pJ4Ao+sR/qLZy8=
 github.com/ianlancetaylor/demangle v0.0.0-20181102032728-5e5cf60278f6/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
-github.com/jfk9w-go/flu v0.11.1 h1:Lyatd2/ko/1yMw+k46nLXX1I1bCB8EWrIQx+5NEzS+A=
-github.com/jfk9w-go/flu v0.11.1/go.mod h1:RHHr2h/gNZvdgNmrq9a+DphZR+pJsBN1oRyz3vHPIpw=
+github.com/jfk9w-go/flu v0.11.2 h1:EP+nT1S+e8ubLYGjuOFIcYUMEoejik/EAKGZpR6zL8k=
+github.com/jfk9w-go/flu v0.11.2/go.mod h1:RHHr2h/gNZvdgNmrq9a+DphZR+pJsBN1oRyz3vHPIpw=
 github.com/jinzhu/inflection v1.0.0 h1:K317FqzuhWc8YvSVlFMCCUb36O/S9MCKRDI7QkRKD/E=
 github.com/jinzhu/inflection v1.0.0/go.mod h1:h+uFLlag+Qp1Va5pdKtLDYj+kHp5pxUVkryuEj+Srlc=
 github.com/jinzhu/now v1.1.4/go.mod h1:d3SSVoowX0Lcu0IBviAWJpolVfI5UJVZZ7cO71lE/z8=

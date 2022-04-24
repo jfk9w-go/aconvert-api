@@ -1,7 +1,7 @@
 module github.com/jfk9w-go/aconvert-api
 
 require (
-	github.com/jfk9w-go/flu v0.11.1
+	github.com/jfk9w-go/flu v0.11.2
 	github.com/pkg/errors v0.9.1
 )
 
